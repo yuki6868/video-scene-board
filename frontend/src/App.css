@@ -99,3 +99,25 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cancel-button {
+  background: #777;
+}
+
+.card-actions {
+  margin-top: 12px;
+}
+
+.card-actions button {
+  padding: 8px 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}

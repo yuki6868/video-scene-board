@@ -3,26 +3,31 @@ import "./App.css";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
+const initialForm = {
+  title: "",
+  script: "",
+  materials: "",
+};
+
 function App() {
   const [scenes, setScenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [form, setForm] = useState({
-    title: "",
-    script: "",
-    materials: "",
-  });
+  const [form, setForm] = useState(initialForm);
+  const [editingSceneId, setEditingSceneId] = useState(null);
 
-  // 一覧取得
   const loadScenes = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/scenes/`);
-      if (!response.ok) throw new Error("取得失敗");
+      if (!response.ok) {
+        throw new Error("シーン一覧の取得に失敗しました");
+      }
       const data = await response.json();
       setScenes(data);
+      setError(null);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "エラーが発生しました");
     } finally {
       setLoading(false);
     }
@@ -32,43 +37,70 @@ function App() {
     loadScenes();
   }, []);
 
-  // 入力変更
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  // 作成処理
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingSceneId(null);
+  };
+
+  const handleEdit = (scene) => {
+    setForm({
+      title: scene.title || "",
+      script: scene.script || "",
+      materials: scene.materials || "",
+    });
+    setEditingSceneId(scene.id);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${API_BASE_URL}/scenes/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...form,
-          position: scenes.length, // 最後に追加
-        }),
-      });
+      if (editingSceneId === null) {
+        const response = await fetch(`${API_BASE_URL}/scenes/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...form,
+            position: scenes.length,
+          }),
+        });
 
-      if (!response.ok) throw new Error("作成失敗");
+        if (!response.ok) {
+          throw new Error("シーン作成に失敗しました");
+        }
+      } else {
+        const targetScene = scenes.find((scene) => scene.id === editingSceneId);
 
-      // フォームリセット
-      setForm({
-        title: "",
-        script: "",
-        materials: "",
-      });
+        const response = await fetch(`${API_BASE_URL}/scenes/${editingSceneId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...form,
+            position: targetScene.position,
+          }),
+        });
 
-      // 再取得
-      loadScenes();
+        if (!response.ok) {
+          throw new Error("シーン更新に失敗しました");
+        }
+      }
+
+      resetForm();
+      await loadScenes();
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "保存に失敗しました");
     }
   };
 
@@ -76,12 +108,12 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1>Video Scene Board</h1>
+        <p>1本の動画を、シーンごとのカードで管理する</p>
       </header>
 
       <main className="scene-board">
-        {/* 作成フォーム */}
         <form className="scene-form" onSubmit={handleSubmit}>
-          <h2>シーン追加</h2>
+          <h2>{editingSceneId === null ? "シーン追加" : "シーン編集"}</h2>
 
           <input
             name="title"
@@ -105,23 +137,56 @@ function App() {
             onChange={handleChange}
           />
 
-          <button type="submit">追加</button>
+          <div className="form-actions">
+            <button type="submit">
+              {editingSceneId === null ? "追加" : "更新"}
+            </button>
+
+            {editingSceneId !== null && (
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={resetForm}
+              >
+                キャンセル
+              </button>
+            )}
+          </div>
         </form>
 
-        {/* 一覧 */}
         {loading && <p>読み込み中...</p>}
         {error && <p className="error">{error}</p>}
 
-        <div className="scene-list">
-          {scenes.map((scene) => (
-            <div className="scene-card" key={scene.id}>
-              <p>#{scene.position}</p>
-              <h3>{scene.title}</h3>
-              <p>{scene.script}</p>
-              <p>{scene.materials}</p>
-            </div>
-          ))}
-        </div>
+        {!loading && !error && scenes.length === 0 && (
+          <p>シーンがまだありません。</p>
+        )}
+
+        {!loading && !error && scenes.length > 0 && (
+          <div className="scene-list">
+            {scenes.map((scene) => (
+              <article className="scene-card" key={scene.id}>
+                <div className="scene-meta">Scene #{scene.position}</div>
+                <h3>{scene.title}</h3>
+
+                <div className="scene-section">
+                  <strong>台本</strong>
+                  <p>{scene.script || "未設定"}</p>
+                </div>
+
+                <div className="scene-section">
+                  <strong>素材</strong>
+                  <p>{scene.materials || "未設定"}</p>
+                </div>
+
+                <div className="card-actions">
+                  <button type="button" onClick={() => handleEdit(scene)}>
+                    編集
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
