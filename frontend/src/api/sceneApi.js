@@ -1,7 +1,7 @@
 const API_BASE_URL = "http://127.0.0.1:8000";
 
-export async function fetchScenes() {
-  const response = await fetch(`${API_BASE_URL}/scenes/`);
+export async function fetchScenes(videoId) {
+  const response = await fetch(`${API_BASE_URL}/videos/${videoId}/scenes`);
 
   if (!response.ok) {
     throw new Error("シーン一覧の取得に失敗しました");
@@ -10,8 +10,8 @@ export async function fetchScenes() {
   return response.json();
 }
 
-export async function createScene(scene) {
-  const response = await fetch(`${API_BASE_URL}/scenes/`, {
+export async function createScene(videoId, scene) {
+  const response = await fetch(`${API_BASE_URL}/videos/${videoId}/scenes`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -54,14 +54,17 @@ export async function deleteScene(sceneId) {
   return response.json();
 }
 
-export async function reorderScenes(items) {
-  const response = await fetch(`${API_BASE_URL}/scenes/reorder`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(items),
-  });
+export async function reorderScenes(videoId, items) {
+  const response = await fetch(
+    `${API_BASE_URL}/videos/${videoId}/scenes/reorder`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(items),
+    }
+  );
 
   if (!response.ok) {
     throw new Error("シーン並び替えに失敗しました");

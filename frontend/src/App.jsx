@@ -17,11 +17,18 @@ import {
   deleteScene,
   reorderScenes,
 } from "./api/sceneApi";
+import { fetchVideos, createVideo } from "./api/videoApi";
 
-const initialForm = {
+const initialSceneForm = {
   title: "",
   script: "",
   materials: "",
+};
+
+const initialVideoForm = {
+  title: "",
+  description: "",
+  status: "draft",
 };
 
 function truncateText(text, maxLength = 80) {
@@ -54,7 +61,7 @@ function SortableItem({ scene, onOpenDetail, onDelete, dragDisabled }) {
         >
           ⠿
         </button>
-        <span className="scene-meta">Scene #{scene.position}</span>
+        <span className="scene-meta">Scene #{scene.position + 1}</span>
       </div>
 
       <div
@@ -156,18 +163,107 @@ function SceneModal({
   );
 }
 
+function VideoModal({ isOpen, form, onChange, onSubmit, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>動画追加</h2>
+          <button type="button" className="modal-close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <form className="scene-form modal-form" onSubmit={onSubmit}>
+          <input
+            name="title"
+            placeholder="動画タイトル"
+            value={form.title}
+            onChange={onChange}
+            required
+          />
+
+          <textarea
+            name="description"
+            placeholder="動画の説明"
+            value={form.description}
+            onChange={onChange}
+            rows={5}
+          />
+
+          <select name="status" value={form.status} onChange={onChange}>
+            <option value="draft">draft</option>
+            <option value="in_progress">in_progress</option>
+            <option value="done">done</option>
+          </select>
+
+          <div className="form-actions">
+            <button type="submit">追加</button>
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={onClose}
+            >
+              閉じる
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const [videos, setVideos] = useState([]);
+  const [selectedVideoId, setSelectedVideoId] = useState(null);
+
   const [scenes, setScenes] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  const [sceneForm, setSceneForm] = useState(initialSceneForm);
+  const [videoForm, setVideoForm] = useState(initialVideoForm);
+
   const [editingSceneId, setEditingSceneId] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSceneModalOpen, setIsSceneModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+
   const [searchText, setSearchText] = useState("");
 
   const isSearching = searchText.trim() !== "";
 
-  const loadScenes = async () => {
+  const selectedVideo = useMemo(() => {
+    return videos.find((video) => video.id === selectedVideoId) ?? null;
+  }, [videos, selectedVideoId]);
+
+  const loadVideos = async () => {
     try {
-      const data = await fetchScenes();
+      const data = await fetchVideos();
+      setVideos(data);
+
+      if (data.length === 0) {
+        setSelectedVideoId(null);
+        setScenes([]);
+        return;
+      }
+
+      setSelectedVideoId((prev) => {
+        const exists = data.some((video) => video.id === prev);
+        return exists ? prev : data[0].id;
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "動画一覧の取得に失敗しました");
+    }
+  };
+
+  const loadScenes = async (videoId) => {
+    if (!videoId) {
+      setScenes([]);
+      return;
+    }
+
+    try {
+      const data = await fetchScenes(videoId);
       setScenes(data);
     } catch (error) {
       console.error(error);
@@ -176,8 +272,16 @@ function App() {
   };
 
   useEffect(() => {
-    loadScenes();
+    loadVideos();
   }, []);
+
+  useEffect(() => {
+    if (selectedVideoId) {
+      loadScenes(selectedVideoId);
+    } else {
+      setScenes([]);
+    }
+  }, [selectedVideoId]);
 
   const filteredScenes = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -193,41 +297,63 @@ function App() {
     });
   }, [scenes, searchText]);
 
-  const resetForm = () => {
-    setForm(initialForm);
+  const resetSceneForm = () => {
+    setSceneForm(initialSceneForm);
     setEditingSceneId(null);
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    resetForm();
+  const resetVideoForm = () => {
+    setVideoForm(initialVideoForm);
   };
 
-  const openCreateModal = () => {
-    resetForm();
-    setIsModalOpen(true);
+  const closeSceneModal = () => {
+    setIsSceneModalOpen(false);
+    resetSceneForm();
+  };
+
+  const closeVideoModal = () => {
+    setIsVideoModalOpen(false);
+    resetVideoForm();
+  };
+
+  const openCreateSceneModal = () => {
+    if (!selectedVideoId) {
+      alert("先に動画を作成してください");
+      return;
+    }
+
+    resetSceneForm();
+    setIsSceneModalOpen(true);
   };
 
   const openDetailModal = (scene) => {
-    setForm({
+    setSceneForm({
       title: scene.title || "",
       script: scene.script || "",
       materials: scene.materials || "",
     });
     setEditingSceneId(scene.id);
-    setIsModalOpen(true);
+    setIsSceneModalOpen(true);
   };
 
-  const handleChange = (e) => {
+  const handleSceneChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
+    setSceneForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleVideoChange = (e) => {
+    const { name, value } = e.target;
+    setVideoForm((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
   const handleDragEnd = async (event) => {
-    if (isSearching) return;
+    if (isSearching || !selectedVideoId) return;
 
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -245,6 +371,7 @@ function App() {
 
     try {
       await reorderScenes(
+        selectedVideoId,
         updated.map((scene) => ({
           id: scene.id,
           position: scene.position,
@@ -253,7 +380,7 @@ function App() {
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン並び替えに失敗しました");
-      loadScenes();
+      loadScenes(selectedVideoId);
     }
   };
 
@@ -265,39 +392,58 @@ function App() {
       await deleteScene(id);
 
       if (editingSceneId === id) {
-        closeModal();
+        closeSceneModal();
       }
 
-      await loadScenes();
+      await loadScenes(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン削除に失敗しました");
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSceneSubmit = async (e) => {
     e.preventDefault();
+
+    if (!selectedVideoId) {
+      alert("先に動画を選択してください");
+      return;
+    }
 
     try {
       if (editingSceneId === null) {
-        await createScene({
-          ...form,
+        await createScene(selectedVideoId, {
+          ...sceneForm,
           position: scenes.length,
         });
       } else {
         const target = scenes.find((s) => s.id === editingSceneId);
 
         await updateScene(editingSceneId, {
-          ...form,
+          ...sceneForm,
           position: target.position,
         });
       }
 
-      closeModal();
-      await loadScenes();
+      closeSceneModal();
+      await loadScenes(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "保存に失敗しました");
+    }
+  };
+
+  const handleVideoSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const created = await createVideo(videoForm);
+      await loadVideos();
+      setSelectedVideoId(created.id);
+      closeVideoModal();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "動画作成に失敗しました");
     }
   };
 
@@ -306,14 +452,56 @@ function App() {
       <header className="app-header">
         <div>
           <h1>Video Scene Board</h1>
-          <p>1本の動画を、シーンごとのカードで管理する</p>
+          <p>複数動画を、シーンごとのカードで管理する</p>
         </div>
-        <button type="button" className="add-scene-button" onClick={openCreateModal}>
-          ＋ シーン追加
-        </button>
+
+        <div className="header-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setIsVideoModalOpen(true)}
+          >
+            ＋ 動画追加
+          </button>
+          <button
+            type="button"
+            className="add-scene-button"
+            onClick={openCreateSceneModal}
+          >
+            ＋ シーン追加
+          </button>
+        </div>
       </header>
 
       <main className="scene-board">
+        <section className="video-toolbar">
+          <div className="video-selector">
+            <label htmlFor="video-select">動画選択</label>
+            <select
+              id="video-select"
+              value={selectedVideoId ?? ""}
+              onChange={(e) => setSelectedVideoId(Number(e.target.value))}
+            >
+              {videos.length === 0 ? (
+                <option value="">動画がありません</option>
+              ) : (
+                videos.map((video) => (
+                  <option key={video.id} value={video.id}>
+                    {video.title}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {selectedVideo && (
+            <div className="selected-video-summary">
+              <strong>{selectedVideo.title}</strong>
+              <span>{selectedVideo.description || "説明なし"}</span>
+            </div>
+          )}
+        </section>
+
         <div className="scene-toolbar">
           <input
             type="text"
@@ -321,6 +509,7 @@ function App() {
             placeholder="タイトル・台本・素材で検索"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
+            disabled={!selectedVideoId}
           />
           <span className="scene-count">
             {filteredScenes.length}件 / 全{scenes.length}件
@@ -333,33 +522,47 @@ function App() {
           </p>
         )}
 
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext
-            items={filteredScenes.map((s) => s.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="scene-list">
-              {filteredScenes.map((scene) => (
-                <SortableItem
-                  key={scene.id}
-                  scene={scene}
-                  onOpenDetail={openDetailModal}
-                  onDelete={handleDelete}
-                  dragDisabled={isSearching}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+        {!selectedVideoId ? (
+          <div className="empty-state">
+            <p>まずは動画を1本作成してください。</p>
+          </div>
+        ) : (
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext
+              items={filteredScenes.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="scene-list">
+                {filteredScenes.map((scene) => (
+                  <SortableItem
+                    key={scene.id}
+                    scene={scene}
+                    onOpenDetail={openDetailModal}
+                    onDelete={handleDelete}
+                    dragDisabled={isSearching}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
       </main>
 
       <SceneModal
-        isOpen={isModalOpen}
-        form={form}
+        isOpen={isSceneModalOpen}
+        form={sceneForm}
         editingSceneId={editingSceneId}
-        onChange={handleChange}
-        onSubmit={handleSubmit}
-        onClose={closeModal}
+        onChange={handleSceneChange}
+        onSubmit={handleSceneSubmit}
+        onClose={closeSceneModal}
+      />
+
+      <VideoModal
+        isOpen={isVideoModalOpen}
+        form={videoForm}
+        onChange={handleVideoChange}
+        onSubmit={handleVideoSubmit}
+        onClose={closeVideoModal}
       />
     </div>
   );
