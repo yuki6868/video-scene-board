@@ -23,9 +23,12 @@ function truncateText(text, maxLength = 80) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
-function SortableItem({ scene, onOpenDetail, onDelete }) {
+function SortableItem({ scene, onOpenDetail, onDelete, dragDisabled }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: scene.id });
+    useSortable({
+      id: scene.id,
+      disabled: dragDisabled,
+    });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -37,9 +40,11 @@ function SortableItem({ scene, onOpenDetail, onDelete }) {
       <div className="scene-card-header">
         <button
           type="button"
-          className="drag-handle"
+          className={`drag-handle ${dragDisabled ? "is-disabled" : ""}`}
           {...attributes}
           {...listeners}
+          disabled={dragDisabled}
+          title={dragDisabled ? "検索中は並び替えできません" : "ドラッグで並び替え"}
         >
           ⠿
         </button>
@@ -152,6 +157,8 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
 
+  const isSearching = searchText.trim() !== "";
+
   const loadScenes = async () => {
     const res = await fetch(`${API_BASE_URL}/scenes/`);
     const data = await res.json();
@@ -210,6 +217,8 @@ function App() {
   };
 
   const handleDragEnd = async (event) => {
+    if (isSearching) return;
+
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -306,6 +315,12 @@ function App() {
           </span>
         </div>
 
+        {isSearching && (
+          <p className="search-notice">
+            検索中は並び替えできません。並び替えるときは検索をクリアしてください。
+          </p>
+        )}
+
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext
             items={filteredScenes.map((s) => s.id)}
@@ -318,6 +333,7 @@ function App() {
                   scene={scene}
                   onOpenDetail={openDetailModal}
                   onDelete={handleDelete}
+                  dragDisabled={isSearching}
                 />
               ))}
             </div>
