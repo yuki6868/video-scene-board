@@ -41,6 +41,25 @@ def get_scene(scene_id: int, db: Session = Depends(get_db)):
     return scene
 
 
+@router.put("/reorder", response_model=list[SceneResponse])
+def reorder_scenes(items: list[SceneReorderItem], db: Session = Depends(get_db)):
+    ids = [item.id for item in items]
+
+    scenes = db.query(Scene).filter(Scene.id.in_(ids)).all()
+    scene_map = {scene.id: scene for scene in scenes}
+
+    if len(scene_map) != len(items):
+        raise HTTPException(status_code=404, detail="Some scenes were not found")
+
+    for item in items:
+        scene_map[item.id].position = item.position
+
+    db.commit()
+
+    updated_scenes = db.query(Scene).order_by(Scene.position.asc(), Scene.id.asc()).all()
+    return updated_scenes
+
+
 @router.put("/{scene_id}", response_model=SceneResponse)
 def update_scene(scene_id: int, scene_data: SceneUpdate, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
@@ -83,20 +102,3 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     return {"message": "Scene deleted"}
 
 
-@router.put("/reorder", response_model=list[SceneResponse])
-def reorder_scenes(items: list[SceneReorderItem], db: Session = Depends(get_db)):
-    ids = [item.id for item in items]
-
-    scenes = db.query(Scene).filter(Scene.id.in_(ids)).all()
-    scene_map = {scene.id: scene for scene in scenes}
-
-    if len(scene_map) != len(items):
-        raise HTTPException(status_code=404, detail="Some scenes were not found")
-
-    for item in items:
-        scene_map[item.id].position = item.position
-
-    db.commit()
-
-    updated_scenes = db.query(Scene).order_by(Scene.position.asc(), Scene.id.asc()).all()
-    return updated_scenes
