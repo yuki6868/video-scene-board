@@ -23,6 +23,7 @@ class SceneReorderItem(BaseModel):
 
 class SceneResponse(BaseModel):
     id: int
+    video_id: int
     title: str
     script: str | None
     materials: str | None

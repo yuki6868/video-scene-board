@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.models.scene import Scene
+from app.models.video import Video
 from app.schemas.scene import (
     SceneCreate,
     SceneResponse,
@@ -10,12 +11,17 @@ from app.schemas.scene import (
     SceneUpdate,
 )
 
-router = APIRouter(prefix="/scenes", tags=["scenes"])
+router = APIRouter(tags=["scenes"])
 
 
-@router.post("/", response_model=SceneResponse)
-def create_scene(scene: SceneCreate, db: Session = Depends(get_db)):
+@router.post("/videos/{video_id}/scenes", response_model=SceneResponse)
+def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
     new_scene = Scene(
+        video_id=video_id,
         title=scene.title,
         script=scene.script,
         materials=scene.materials,
@@ -27,13 +33,22 @@ def create_scene(scene: SceneCreate, db: Session = Depends(get_db)):
     return new_scene
 
 
-@router.get("/", response_model=list[SceneResponse])
-def list_scenes(db: Session = Depends(get_db)):
-    scenes = db.query(Scene).order_by(Scene.position.asc(), Scene.id.asc()).all()
+@router.get("/videos/{video_id}/scenes", response_model=list[SceneResponse])
+def list_scenes(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    scenes = (
+        db.query(Scene)
+        .filter(Scene.video_id == video_id)
+        .order_by(Scene.position.asc(), Scene.id.asc())
+        .all()
+    )
     return scenes
 
 
-@router.get("/{scene_id}", response_model=SceneResponse)
+@router.get("/scenes/{scene_id}", response_model=SceneResponse)
 def get_scene(scene_id: int, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
     if scene is None:
@@ -41,26 +56,39 @@ def get_scene(scene_id: int, db: Session = Depends(get_db)):
     return scene
 
 
-@router.put("/reorder", response_model=list[SceneResponse])
-def reorder_scenes(items: list[SceneReorderItem], db: Session = Depends(get_db)):
+@router.put("/videos/{video_id}/scenes/reorder", response_model=list[SceneResponse])
+def reorder_scenes(video_id: int, items: list[SceneReorderItem], db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
     ids = [item.id for item in items]
 
-    scenes = db.query(Scene).filter(Scene.id.in_(ids)).all()
+    scenes = (
+        db.query(Scene)
+        .filter(Scene.video_id == video_id, Scene.id.in_(ids))
+        .all()
+    )
     scene_map = {scene.id: scene for scene in scenes}
 
     if len(scene_map) != len(items):
-        raise HTTPException(status_code=404, detail="Some scenes were not found")
+        raise HTTPException(status_code=404, detail="Some scenes were not found in this video")
 
     for item in items:
         scene_map[item.id].position = item.position
 
     db.commit()
 
-    updated_scenes = db.query(Scene).order_by(Scene.position.asc(), Scene.id.asc()).all()
+    updated_scenes = (
+        db.query(Scene)
+        .filter(Scene.video_id == video_id)
+        .order_by(Scene.position.asc(), Scene.id.asc())
+        .all()
+    )
     return updated_scenes
 
 
-@router.put("/{scene_id}", response_model=SceneResponse)
+@router.put("/scenes/{scene_id}", response_model=SceneResponse)
 def update_scene(scene_id: int, scene_data: SceneUpdate, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
     if scene is None:
@@ -76,12 +104,13 @@ def update_scene(scene_id: int, scene_data: SceneUpdate, db: Session = Depends(g
     return scene
 
 
-@router.delete("/{scene_id}")
+@router.delete("/scenes/{scene_id}")
 def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
     if scene is None:
         raise HTTPException(status_code=404, detail="Scene not found")
 
+    video_id = scene.video_id
     deleted_position = scene.position
 
     db.delete(scene)
@@ -89,7 +118,7 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
 
     remaining_scenes = (
         db.query(Scene)
-        .filter(Scene.position > deleted_position)
+        .filter(Scene.video_id == video_id, Scene.position > deleted_position)
         .order_by(Scene.position.asc())
         .all()
     )
@@ -100,5 +129,3 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Scene deleted"}
-
-
