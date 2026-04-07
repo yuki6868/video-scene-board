@@ -9,6 +9,13 @@ class SceneCreate(BaseModel):
     position: int = 0
 
 
+class SceneUpdate(BaseModel):
+    title: str
+    script: str | None = None
+    materials: str | None = None
+    position: int
+
+
 class SceneResponse(BaseModel):
     id: int
     title: str
