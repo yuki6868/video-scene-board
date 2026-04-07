@@ -235,7 +235,7 @@ function SceneModal({
           />
 
           {/* セクション */}
-          <select name="section_type" value={form.section_type || ""} onChange={onChange}>
+          <select name="section_type" placeholder="セクション" value={form.section_type || ""} onChange={onChange}>
             <option value="">選択</option>
             <option value="導入">導入</option>
             <option value="展開">展開</option>
@@ -244,7 +244,7 @@ function SceneModal({
           </select>
 
           {/* ステータス */}
-          <select name="status" value={form.status} onChange={onChange}>
+          <select name="status" placeholder="ステータス" value={form.status} onChange={onChange}>
             <option value="未着手">未着手</option>
             <option value="作業中">作業中</option>
             <option value="完了">完了</option>
@@ -274,7 +274,7 @@ function SceneModal({
           <textarea name="edit_note" placeholder="編集メモ" value={form.edit_note || ""} onChange={onChange} />
 
           <div className="form-actions">
-            <button type="submit">{editingSceneId ? "更新" : "追加"}</button>
+            <button type="submit" className="submit-button">{editingSceneId ? "更新" : "追加"}</button>
             <button
               type="button"
               className="cancel-button"
@@ -501,7 +501,7 @@ function App() {
       title: scene.title || "",
       script: scene.script || "",
       materials: scene.materials || "",
-      duration_seconds: scene.duration_seconds || "",
+      duration_seconds: scene.duration_seconds ?? "",
     });
 
     setEditingSceneId(scene.id);
@@ -605,18 +605,31 @@ function App() {
       return;
     }
 
+    const payload = {
+      ...sceneForm,
+      duration_seconds:
+        sceneForm.duration_seconds === "" || sceneForm.duration_seconds == null
+          ? null
+          : Number(sceneForm.duration_seconds),
+    };
+
     try {
       if (editingSceneId === null) {
         await createScene(selectedVideoId, {
-          ...sceneForm,
+          ...payload,
           position: scenes.length,
         });
       } else {
-        const target = scenes.find((s) => s.id === editingSceneId);
+        const targetScene = scenes.find((s) => s.id === editingSceneId);
+
+        if (!targetScene) {
+          alert("更新対象のシーンが見つかりません");
+          return;
+        }
 
         await updateScene(editingSceneId, {
-          ...sceneForm,
-          position: target.position,
+          ...payload,
+          position: targetScene.position,
         });
       }
 
