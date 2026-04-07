@@ -285,3 +285,25 @@
 .scene-card-body p {
   line-height: 1.5;
 }
+
+.scene-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.scene-search {
+  width: min(420px, 100%);
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.scene-count {
+  font-size: 14px;
+  color: #666;
+}

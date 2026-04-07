@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -150,6 +150,7 @@ function App() {
   const [form, setForm] = useState(initialForm);
   const [editingSceneId, setEditingSceneId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const loadScenes = async () => {
     const res = await fetch(`${API_BASE_URL}/scenes/`);
@@ -160,6 +161,20 @@ function App() {
   useEffect(() => {
     loadScenes();
   }, []);
+
+  const filteredScenes = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
+
+    if (!keyword) return scenes;
+
+    return scenes.filter((scene) => {
+      return (
+        (scene.title || "").toLowerCase().includes(keyword) ||
+        (scene.script || "").toLowerCase().includes(keyword) ||
+        (scene.materials || "").toLowerCase().includes(keyword)
+      );
+    });
+  }, [scenes, searchText]);
 
   const resetForm = () => {
     setForm(initialForm);
@@ -278,13 +293,26 @@ function App() {
       </header>
 
       <main className="scene-board">
+        <div className="scene-toolbar">
+          <input
+            type="text"
+            className="scene-search"
+            placeholder="タイトル・台本・素材で検索"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+          <span className="scene-count">
+            {filteredScenes.length}件 / 全{scenes.length}件
+          </span>
+        </div>
+
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext
-            items={scenes.map((s) => s.id)}
+            items={filteredScenes.map((s) => s.id)}
             strategy={verticalListSortingStrategy}
           >
             <div className="scene-list">
-              {scenes.map((scene) => (
+              {filteredScenes.map((scene) => (
                 <SortableItem
                   key={scene.id}
                   scene={scene}
