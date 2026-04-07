@@ -15,6 +15,9 @@ class VideoCreate(BaseModel):
 class VideoUpdate(BaseModel):
     title: str
     description: str | None = None
+    concept: str | None = None
+    target: str | None = None
+    goal: str | None = None
     status: str
 
 
@@ -22,6 +25,9 @@ class VideoResponse(BaseModel):
     id: int
     title: str
     description: str | None
+    concept: str | None
+    target: str | None
+    goal: str | None
     status: str
     created_at: datetime
     updated_at: datetime

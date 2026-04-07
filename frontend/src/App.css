@@ -234,6 +234,81 @@
   gap: 16px;
 }
 
+.scene-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.scene-title-row h3 {
+  margin: 0;
+  color: #222;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.scene-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.scene-info-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.scene-info-label {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.scene-info-value {
+  color: #222;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.scene-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.scene-status-todo {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-color: #d1d5db;
+}
+
+.scene-status-doing {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.scene-status-done {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
 .scene-card {
   padding: 16px;
   background: #fff;

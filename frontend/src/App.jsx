@@ -87,6 +87,19 @@ function getStatusClassName(status) {
   }
 }
 
+function getSceneStatusClassName(status) {
+  switch (status) {
+    case "未着手":
+      return "scene-status-badge scene-status-todo";
+    case "作業中":
+      return "scene-status-badge scene-status-doing";
+    case "完了":
+      return "scene-status-badge scene-status-done";
+    default:
+      return "scene-status-badge";
+  }
+}
+
 function formatDateTime(value) {
   if (!value) return "未設定";
 
@@ -149,7 +162,37 @@ function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled
           if (e.key === "Enter") onOpenDetail(scene);
         }}
       >
-        <h3>{scene.title}</h3>
+        <div className="scene-title-row">
+          <h3>{scene.title}</h3>
+          <span className={getSceneStatusClassName(scene.status)}>
+            {scene.status || "未設定"}
+          </span>
+        </div>
+
+        <div className="scene-info-list">
+          <div className="scene-info-item">
+            <span className="scene-info-label">セクション</span>
+            <span className="scene-info-value">{scene.section_type || "未設定"}</span>
+          </div>
+
+          <div className="scene-info-item">
+            <span className="scene-info-label">秒数</span>
+            <span className="scene-info-value">
+              {scene.duration_seconds != null ? `${scene.duration_seconds}秒` : "未設定"}
+            </span>
+          </div>
+
+          <div className="scene-info-item">
+            <span className="scene-info-label">キャラ</span>
+            <span className="scene-info-value">
+              {scene.character_name
+                ? scene.character_expression
+                  ? `${scene.character_name}（${scene.character_expression}）`
+                  : scene.character_name
+                : "未設定"}
+            </span>
+          </div>
+        </div>
 
         <div className="scene-section">
           <strong>台本</strong>
