@@ -143,3 +143,9 @@
 .delete-button {
   background: #dc2626;
 }
+
+.drag-handle {
+  cursor: grab;
+  font-size: 18px;
+  margin-bottom: 8px;
+}

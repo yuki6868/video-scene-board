@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+import {
+  DndContext,
+  closestCenter,
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 const initialForm = {
@@ -9,215 +23,164 @@ const initialForm = {
   materials: "",
 };
 
+function SortableItem({ scene, onEdit, onDelete }) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: scene.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="scene-card">
+      <div {...attributes} {...listeners} className="drag-handle">
+        ⠿
+      </div>
+
+      <p>#{scene.position}</p>
+      <h3>{scene.title}</h3>
+      <p>{scene.script}</p>
+      <p>{scene.materials}</p>
+
+      <div className="card-actions">
+        <button onClick={() => onEdit(scene)}>編集</button>
+        <button className="delete-button" onClick={() => onDelete(scene.id)}>
+          削除
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [scenes, setScenes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const [form, setForm] = useState(initialForm);
   const [editingSceneId, setEditingSceneId] = useState(null);
 
   const loadScenes = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/scenes/`);
-      if (!response.ok) {
-        throw new Error("シーン一覧の取得に失敗しました");
-      }
-      const data = await response.json();
-      setScenes(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message || "エラーが発生しました");
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(`${API_BASE_URL}/scenes/`);
+    const data = await res.json();
+    setScenes(data);
   };
 
   useEffect(() => {
     loadScenes();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
 
-  const resetForm = () => {
-    setForm(initialForm);
-    setEditingSceneId(null);
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = scenes.findIndex((s) => s.id === active.id);
+    const newIndex = scenes.findIndex((s) => s.id === over.id);
+
+    const newScenes = arrayMove(scenes, oldIndex, newIndex);
+
+    // position更新
+    const updated = newScenes.map((scene, index) => ({
+      ...scene,
+      position: index,
+    }));
+
+    setScenes(updated);
+
+    // API送信
+    await fetch(`${API_BASE_URL}/scenes/reorder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        updated.map((s) => ({
+          id: s.id,
+          position: s.position,
+        }))
+      ),
+    });
   };
 
   const handleEdit = (scene) => {
-    setForm({
-      title: scene.title || "",
-      script: scene.script || "",
-      materials: scene.materials || "",
-    });
+    setForm(scene);
     setEditingSceneId(scene.id);
+  };
+
+  const handleDelete = async (id) => {
+    await fetch(`${API_BASE_URL}/scenes/${id}`, {
+      method: "DELETE",
+    });
+    loadScenes();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      if (editingSceneId === null) {
-        const response = await fetch(`${API_BASE_URL}/scenes/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...form,
-            position: scenes.length,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("シーン作成に失敗しました");
-        }
-      } else {
-        const targetScene = scenes.find((scene) => scene.id === editingSceneId);
-
-        const response = await fetch(`${API_BASE_URL}/scenes/${editingSceneId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...form,
-            position: targetScene.position,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("シーン更新に失敗しました");
-        }
-      }
-
-      resetForm();
-      await loadScenes();
-    } catch (err) {
-      alert(err.message || "保存に失敗しました");
-    }
-  };
-
-  const handleDelete = async (sceneId) => {
-    const ok = window.confirm("このシーンを削除しますか？");
-    if (!ok) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/scenes/${sceneId}`, {
-        method: "DELETE",
+    if (editingSceneId === null) {
+      await fetch(`${API_BASE_URL}/scenes/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          position: scenes.length,
+        }),
       });
+    } else {
+      const target = scenes.find((s) => s.id === editingSceneId);
 
-      if (!response.ok) {
-        throw new Error("シーン削除に失敗しました");
-      }
-
-      if (editingSceneId === sceneId) {
-        resetForm();
-      }
-
-      await loadScenes();
-    } catch (err) {
-      alert(err.message || "削除に失敗しました");
+      await fetch(`${API_BASE_URL}/scenes/${editingSceneId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          position: target.position,
+        }),
+      });
     }
+
+    setForm(initialForm);
+    setEditingSceneId(null);
+    loadScenes();
   };
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>Video Scene Board</h1>
-        <p>1本の動画を、シーンごとのカードで管理する</p>
-      </header>
+      <h1>Video Scene Board</h1>
 
-      <main className="scene-board">
-        <form className="scene-form" onSubmit={handleSubmit}>
-          <h2>{editingSceneId === null ? "シーン追加" : "シーン編集"}</h2>
+      <form className="scene-form" onSubmit={handleSubmit}>
+        <input
+          placeholder="タイトル"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+        />
+        <textarea
+          placeholder="台本"
+          value={form.script}
+          onChange={(e) => setForm({ ...form, script: e.target.value })}
+        />
+        <textarea
+          placeholder="素材"
+          value={form.materials}
+          onChange={(e) => setForm({ ...form, materials: e.target.value })}
+        />
+        <button>{editingSceneId ? "更新" : "追加"}</button>
+      </form>
 
-          <input
-            name="title"
-            placeholder="タイトル"
-            value={form.title}
-            onChange={handleChange}
-            required
-          />
-
-          <textarea
-            name="script"
-            placeholder="台本"
-            value={form.script}
-            onChange={handleChange}
-          />
-
-          <textarea
-            name="materials"
-            placeholder="素材"
-            value={form.materials}
-            onChange={handleChange}
-          />
-
-          <div className="form-actions">
-            <button type="submit">
-              {editingSceneId === null ? "追加" : "更新"}
-            </button>
-
-            {editingSceneId !== null && (
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={resetForm}
-              >
-                キャンセル
-              </button>
-            )}
-          </div>
-        </form>
-
-        {loading && <p>読み込み中...</p>}
-        {error && <p className="error">{error}</p>}
-
-        {!loading && !error && scenes.length === 0 && (
-          <p>シーンがまだありません。</p>
-        )}
-
-        {!loading && !error && scenes.length > 0 && (
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={scenes.map((s) => s.id)}
+          strategy={verticalListSortingStrategy}
+        >
           <div className="scene-list">
             {scenes.map((scene) => (
-              <article className="scene-card" key={scene.id}>
-                <div className="scene-meta">Scene #{scene.position}</div>
-                <h3>{scene.title}</h3>
-
-                <div className="scene-section">
-                  <strong>台本</strong>
-                  <p>{scene.script || "未設定"}</p>
-                </div>
-
-                <div className="scene-section">
-                  <strong>素材</strong>
-                  <p>{scene.materials || "未設定"}</p>
-                </div>
-
-                <div className="card-actions">
-                  <button type="button" onClick={() => handleEdit(scene)}>
-                    編集
-                  </button>
-                  <button
-                    type="button"
-                    className="delete-button"
-                    onClick={() => handleDelete(scene.id)}
-                  >
-                    削除
-                  </button>
-                </div>
-              </article>
+              <SortableItem
+                key={scene.id}
+                scene={scene}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
-        )}
-      </main>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
