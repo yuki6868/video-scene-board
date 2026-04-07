@@ -10,7 +10,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+import {
+  fetchScenes,
+  createScene,
+  updateScene,
+  deleteScene,
+  reorderScenes,
+} from "./api/sceneApi";
 
 const initialForm = {
   title: "",
@@ -160,9 +166,13 @@ function App() {
   const isSearching = searchText.trim() !== "";
 
   const loadScenes = async () => {
-    const res = await fetch(`${API_BASE_URL}/scenes/`);
-    const data = await res.json();
-    setScenes(data);
+    try {
+      const data = await fetchScenes();
+      setScenes(data);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "シーン一覧の取得に失敗しました");
+    }
   };
 
   useEffect(() => {
@@ -233,60 +243,62 @@ function App() {
 
     setScenes(updated);
 
-    await fetch(`${API_BASE_URL}/scenes/reorder`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
+    try {
+      await reorderScenes(
         updated.map((scene) => ({
           id: scene.id,
           position: scene.position,
         }))
-      ),
-    });
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "シーン並び替えに失敗しました");
+      loadScenes();
+    }
   };
 
   const handleDelete = async (id) => {
     const ok = window.confirm("このシーンを削除しますか？");
     if (!ok) return;
 
-    await fetch(`${API_BASE_URL}/scenes/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      await deleteScene(id);
 
-    if (editingSceneId === id) {
-      closeModal();
+      if (editingSceneId === id) {
+        closeModal();
+      }
+
+      await loadScenes();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "シーン削除に失敗しました");
     }
-
-    loadScenes();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editingSceneId === null) {
-      await fetch(`${API_BASE_URL}/scenes/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    try {
+      if (editingSceneId === null) {
+        await createScene({
           ...form,
           position: scenes.length,
-        }),
-      });
-    } else {
-      const target = scenes.find((s) => s.id === editingSceneId);
+        });
+      } else {
+        const target = scenes.find((s) => s.id === editingSceneId);
 
-      await fetch(`${API_BASE_URL}/scenes/${editingSceneId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        await updateScene(editingSceneId, {
           ...form,
           position: target.position,
-        }),
-      });
-    }
+        });
+      }
 
-    closeModal();
-    loadScenes();
+      closeModal();
+      await loadScenes();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "保存に失敗しました");
+    }
   };
 
   return (
