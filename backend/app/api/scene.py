@@ -63,8 +63,23 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     if scene is None:
         raise HTTPException(status_code=404, detail="Scene not found")
 
+    deleted_position = scene.position
+
     db.delete(scene)
     db.commit()
+
+    remaining_scenes = (
+        db.query(Scene)
+        .filter(Scene.position > deleted_position)
+        .order_by(Scene.position.asc())
+        .all()
+    )
+
+    for remaining_scene in remaining_scenes:
+        remaining_scene.position -= 1
+
+    db.commit()
+
     return {"message": "Scene deleted"}
 
 
