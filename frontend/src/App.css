@@ -614,4 +614,18 @@
   margin-top: 10px;
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+.delete-button {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.delete-button:hover {
+  background: #fecaca;
 }

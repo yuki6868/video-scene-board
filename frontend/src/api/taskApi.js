@@ -59,3 +59,13 @@ export async function updateTask(taskId, data) {
 
   return response.json();
 }
+
+export async function deleteTask(taskId) {
+  const response = await fetch(`http://127.0.0.1:8000/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("タスク削除に失敗しました");
+  }
+}

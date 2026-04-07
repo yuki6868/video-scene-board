@@ -25,7 +25,7 @@ import {
   deleteVideo,
   duplicateVideo,
 } from "./api/videoApi";
-import { fetchTasks, createTask, updateTask } from "./api/taskApi";
+import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
 
 const initialSceneForm = {
   title: "",
@@ -629,6 +629,21 @@ function App() {
     }));
   };
 
+  async function handleDeleteTask(taskId) {
+    if (!selectedVideo) return;
+
+    const ok = confirm("本当に削除しますか？");
+    if (!ok) return;
+
+    try {
+      await deleteTask(taskId);
+      await loadTasks(selectedVideo.id);
+    } catch (error) {
+      console.error(error);
+      alert("削除に失敗しました");
+    }
+  }
+
   async function handleCreateTask() {
     if (!selectedVideo) return;
 
@@ -1025,6 +1040,13 @@ function App() {
                           </button>
                           <button onClick={() => handleUpdateTaskStatus(task, "完了")}>
                             完了
+                          </button>
+                          <button
+                            type="button"
+                            className="delete-button"
+                            onClick={() => handleDeleteTask(task.id)}
+                          >
+                            削除
                           </button>
                         </div>
 
