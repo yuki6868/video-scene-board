@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import health
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.scene import router as scene_router
 from app.db.database import Base, engine
@@ -9,11 +9,17 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(scene_router)
+
 
 @app.get("/")
 def read_root():
     return {"message": "Video Scene Board API"}
-
-# router登録
-app.include_router(health.router)
