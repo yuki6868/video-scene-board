@@ -656,6 +656,7 @@
 
 .task-column {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   min-height: 420px;
   background: #f8fafc;
@@ -706,7 +707,9 @@
 .task-column-body {
   display: flex;
   flex-direction: column;
+  min-height: 120px;
   gap: 12px;
+  align-items: stretch;
   flex: 1;
 }
 
@@ -802,4 +805,37 @@
 .task-create-form button {
   align-self: flex-end;
   min-width: 120px;
+}
+
+.task-draggable {
+  cursor: grab;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.task-draggable.is-dragging {
+  cursor: grabbing;
+}
+
+.task-column-over {
+  outline: 2px dashed #60a5fa;
+  outline-offset: -6px;
+  background: #eff6ff;
+}
+
+.task-draggable {
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.task-card {
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.task-draggable.is-dragging {
+  z-index: 10;
 }
