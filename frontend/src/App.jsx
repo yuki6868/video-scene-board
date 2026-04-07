@@ -464,6 +464,9 @@ function App() {
 
   const [searchText, setSearchText] = useState("");
 
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTask, setEditingTask] = useState(null);
+
   const [newTask, setNewTask] = useState({
     title: "",
     detail: "",
@@ -503,6 +506,34 @@ function App() {
       alert(error.message || "動画一覧の取得に失敗しました");
     }
   };
+
+  function handleStartEdit(task) {
+    setEditingTaskId(task.id);
+    setEditingTask({
+      title: task.title,
+      detail: task.detail || "",
+      priority: task.priority,
+      task_type: task.task_type,
+      scene_id: task.scene_id,
+    });
+  }
+
+  function handleCancelEdit() {
+    setEditingTaskId(null);
+    setEditingTask(null);
+  }
+
+  async function handleSaveEdit(taskId) {
+    try {
+      await updateTask(taskId, editingTask);
+      setEditingTaskId(null);
+      setEditingTask(null);
+      await loadTasks(selectedVideoId);
+    } catch (e) {
+      console.error(e);
+      alert("更新失敗");
+    }
+  }
 
   async function loadTasks(videoId) {
     setTasksLoading(true);
@@ -1064,6 +1095,83 @@ function App() {
                               (scene) => scene.id === task.scene_id
                             );
 
+                            const isEditing = editingTaskId === task.id;
+
+                            if (isEditing) {
+                              return (
+                                <article
+                                  key={task.id}
+                                  className={`task-card ${getTaskPriorityCardClass(task.priority)}`}
+                                >
+                                  <input
+                                    type="text"
+                                    value={editingTask.title}
+                                    onChange={(e) =>
+                                      setEditingTask({ ...editingTask, title: e.target.value })
+                                    }
+                                    placeholder="タイトル"
+                                  />
+
+                                  <textarea
+                                    value={editingTask.detail}
+                                    onChange={(e) =>
+                                      setEditingTask({ ...editingTask, detail: e.target.value })
+                                    }
+                                    placeholder="詳細"
+                                  />
+
+                                  <select
+                                    value={editingTask.scene_id || ""}
+                                    onChange={(e) =>
+                                      setEditingTask({
+                                        ...editingTask,
+                                        scene_id: e.target.value ? Number(e.target.value) : null,
+                                      })
+                                    }
+                                  >
+                                    <option value="">動画全体</option>
+                                    {scenes.map((scene) => (
+                                      <option key={scene.id} value={scene.id}>
+                                        Scene #{scene.position + 1} {scene.title}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <select
+                                    value={editingTask.priority}
+                                    onChange={(e) =>
+                                      setEditingTask({ ...editingTask, priority: e.target.value })
+                                    }
+                                  >
+                                    <option value="高">高</option>
+                                    <option value="中">中</option>
+                                    <option value="低">低</option>
+                                  </select>
+
+                                  <select
+                                    value={editingTask.task_type}
+                                    onChange={(e) =>
+                                      setEditingTask({ ...editingTask, task_type: e.target.value })
+                                    }
+                                  >
+                                    <option value="加工">加工</option>
+                                    <option value="音声">音声</option>
+                                    <option value="素材">素材</option>
+                                    <option value="確認">確認</option>
+                                  </select>
+
+                                  <div className="task-actions">
+                                    <button type="button" onClick={() => handleSaveEdit(task.id)}>
+                                      保存
+                                    </button>
+                                    <button type="button" onClick={handleCancelEdit}>
+                                      キャンセル
+                                    </button>
+                                  </div>
+                                </article>
+                              );
+                            }
+
                             return (
                               <article
                                 key={task.id}
@@ -1095,6 +1203,10 @@ function App() {
                                 </p>
 
                                 <div className="task-actions">
+                                  <button type="button" onClick={() => handleStartEdit(task)}>
+                                    編集
+                                  </button>
+
                                   {status !== "未着手" && (
                                     <button
                                       type="button"
