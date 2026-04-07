@@ -25,7 +25,7 @@ import {
   deleteVideo,
   duplicateVideo,
 } from "./api/videoApi";
-import { fetchTasks } from "./api/taskApi";
+import { fetchTasks, createTask, updateTask } from "./api/taskApi";
 
 const initialSceneForm = {
   title: "",
@@ -451,6 +451,15 @@ function App() {
 
   const [searchText, setSearchText] = useState("");
 
+  const [newTask, setNewTask] = useState({
+    title: "",
+    detail: "",
+    task_type: "加工",
+    priority: "中",
+    status: "未着手",
+    scene_id: null,
+  });
+
   const isSearching = searchText.trim() !== "";
 
   const selectedVideo = useMemo(() => {
@@ -619,6 +628,51 @@ function App() {
       [name]: value,
     }));
   };
+
+  async function handleCreateTask() {
+    if (!selectedVideo) return;
+
+    if (!newTask.title.trim()) {
+      alert("タイトルは必須です");
+      return;
+    }
+
+    try {
+      await createTask({
+        ...newTask,
+        video_id: selectedVideo.id,
+      });
+
+      // リセット
+      setNewTask({
+        title: "",
+        detail: "",
+        task_type: "加工",
+        priority: "中",
+        status: "未着手",
+        scene_id: null,
+      });
+
+      // 再取得
+      await loadTasks(selectedVideo.id);
+    } catch (e) {
+      console.error(e);
+      alert("作成失敗");
+    }
+  }
+
+  async function handleUpdateTaskStatus(task, newStatus) {
+    try {
+      await updateTask(task.id, {
+        status: newStatus,
+      });
+
+      await loadTasks(selectedVideo.id);
+    } catch (e) {
+      console.error(e);
+      alert("更新失敗");
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -872,6 +926,51 @@ function App() {
             </div>
           )}
 
+          <div className="task-create-form">
+            <h3>TODO追加</h3>
+
+            <input
+              type="text"
+              placeholder="タイトル"
+              value={newTask.title}
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            />
+
+            <textarea
+              placeholder="詳細"
+              value={newTask.detail}
+              onChange={(e) => setNewTask({ ...newTask, detail: e.target.value })}
+            />
+
+            <select
+              value={newTask.scene_id || ""}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  scene_id: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            >
+              <option value="">動画全体</option>
+              {scenes.map((scene) => (
+                <option key={scene.id} value={scene.id}>
+                  Scene #{scene.position + 1} {scene.title}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={newTask.priority}
+              onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+            >
+              <option value="高">高</option>
+              <option value="中">中</option>
+              <option value="低">低</option>
+            </select>
+
+            <button onClick={handleCreateTask}>追加</button>
+          </div>
+
           {selectedVideo && (
             <section className="task-panel">
               <div className="task-panel-header">
@@ -915,6 +1014,18 @@ function App() {
                               ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
                               : "動画全体"}
                           </span>
+                        </div>
+
+                        <div className="task-actions">
+                          <button onClick={() => handleUpdateTaskStatus(task, "未着手")}>
+                            未着手
+                          </button>
+                          <button onClick={() => handleUpdateTaskStatus(task, "作業中")}>
+                            作業中
+                          </button>
+                          <button onClick={() => handleUpdateTaskStatus(task, "完了")}>
+                            完了
+                          </button>
                         </div>
 
                         <p className="task-detail">{task.detail || "詳細は未設定です。"}</p>

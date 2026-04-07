@@ -27,3 +27,35 @@ export async function fetchTasks(params = {}) {
 
   return response.json();
 }
+
+export async function createTask(data) {
+  const response = await fetch("http://127.0.0.1:8000/tasks/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("タスク作成に失敗しました");
+  }
+
+  return response.json();
+}
+
+export async function updateTask(taskId, data) {
+  const response = await fetch(`http://127.0.0.1:8000/tasks/${taskId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("タスク更新に失敗しました");
+  }
+
+  return response.json();
+}
