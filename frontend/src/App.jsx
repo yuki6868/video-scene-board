@@ -167,7 +167,7 @@ function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled
       </div>
 
       <div className="card-actions">
-        <button type="button" onClick={() => onOpenDetail(scene)}>
+        <button type="button" className="submit-button" onClick={() => onOpenDetail(scene)}>
           詳細
         </button>
         <button
@@ -347,7 +347,7 @@ function VideoModal({ isOpen, form, editingVideoId, onChange, onSubmit, onClose 
           </select>
 
           <div className="form-actions">
-            <button type="submit">{editingVideoId ? "更新" : "追加"}</button>
+            <button type="submit" className="submit-button">{editingVideoId ? "更新" : "追加"}</button>
             <button
               type="button"
               className="cancel-button"
@@ -761,7 +761,7 @@ function App() {
 
           {selectedVideo && (
             <div className="video-actions">
-              <button onClick={openEditVideoModal}>
+              <button className="submit-button"onClick={openEditVideoModal}>
                 編集
               </button>
               <button type="button" className="duplicate-button" onClick={handleDuplicateVideo}>
