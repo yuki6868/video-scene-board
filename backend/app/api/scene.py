@@ -104,6 +104,36 @@ def update_scene(scene_id: int, scene_data: SceneUpdate, db: Session = Depends(g
     return scene
 
 
+@router.post("/scenes/{scene_id}/duplicate", response_model=SceneResponse)
+def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
+    source_scene = db.query(Scene).filter(Scene.id == scene_id).first()
+    if source_scene is None:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    last_scene = (
+        db.query(Scene)
+        .filter(Scene.video_id == source_scene.video_id)
+        .order_by(Scene.position.desc(), Scene.id.desc())
+        .first()
+    )
+
+    next_position = 0 if last_scene is None else last_scene.position + 1
+
+    duplicated_scene = Scene(
+        video_id=source_scene.video_id,
+        title=f"{source_scene.title}（複製）",
+        script=source_scene.script,
+        materials=source_scene.materials,
+        position=next_position,
+    )
+
+    db.add(duplicated_scene)
+    db.commit()
+    db.refresh(duplicated_scene)
+
+    return duplicated_scene
+
+
 @router.delete("/scenes/{scene_id}")
 def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()

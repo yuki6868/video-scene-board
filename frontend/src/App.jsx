@@ -16,8 +16,9 @@ import {
   updateScene,
   deleteScene,
   reorderScenes,
+  duplicateScene,
 } from "./api/sceneApi";
-import { fetchVideos, createVideo } from "./api/videoApi";
+import { fetchVideos, createVideo, updateVideo, deleteVideo } from "./api/videoApi";
 
 const initialSceneForm = {
   title: "",
@@ -36,7 +37,7 @@ function truncateText(text, maxLength = 80) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
-function SortableItem({ scene, onOpenDetail, onDelete, dragDisabled }) {
+function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: scene.id,
@@ -89,6 +90,13 @@ function SortableItem({ scene, onOpenDetail, onDelete, dragDisabled }) {
       <div className="card-actions">
         <button type="button" onClick={() => onOpenDetail(scene)}>
           詳細
+        </button>
+        <button
+          type="button"
+          className="duplicate-button"
+          onClick={() => onDuplicate(scene.id)}
+        >
+          複製
         </button>
         <button
           type="button"
@@ -235,6 +243,8 @@ function App() {
     return videos.find((video) => video.id === selectedVideoId) ?? null;
   }, [videos, selectedVideoId]);
 
+  const [editingVideoId, setEditingVideoId] = useState(null);
+
   const loadVideos = async () => {
     try {
       const data = await fetchVideos();
@@ -313,6 +323,7 @@ function App() {
 
   const closeVideoModal = () => {
     setIsVideoModalOpen(false);
+    setEditingVideoId(null);
     resetVideoForm();
   };
 
@@ -325,6 +336,19 @@ function App() {
     resetSceneForm();
     setIsSceneModalOpen(true);
   };
+
+  const openEditVideoModal = () => {
+  if (!selectedVideo) return;
+
+  setVideoForm({
+    title: selectedVideo.title,
+    description: selectedVideo.description || "",
+    status: selectedVideo.status,
+  });
+
+  setEditingVideoId(selectedVideo.id);
+  setIsVideoModalOpen(true);
+};
 
   const openDetailModal = (scene) => {
     setSceneForm({
@@ -402,6 +426,16 @@ function App() {
     }
   };
 
+  const handleDuplicate = async (sceneId) => {
+    try {
+      await duplicateScene(sceneId);
+      await loadScenes(selectedVideoId);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "シーン複製に失敗しました");
+    }
+  };
+
   const handleSceneSubmit = async (e) => {
     e.preventDefault();
 
@@ -437,13 +471,42 @@ function App() {
     e.preventDefault();
 
     try {
-      const created = await createVideo(videoForm);
-      await loadVideos();
-      setSelectedVideoId(created.id);
+      if (editingVideoId === null) {
+        const created = await createVideo(videoForm);
+        await loadVideos();
+        setSelectedVideoId(created.id);
+      } else {
+        await updateVideo(editingVideoId, videoForm);
+        await loadVideos();
+      }
+
       closeVideoModal();
     } catch (error) {
       console.error(error);
-      alert(error.message || "動画作成に失敗しました");
+      alert(error.message || "動画保存に失敗しました");
+    }
+  };
+
+  const handleDeleteVideo = async () => {
+    if (!selectedVideoId) return;
+
+    const ok = window.confirm("この動画を削除しますか？（シーンも全部消えます）");
+    if (!ok) return;
+
+    try {
+      await deleteVideo(selectedVideoId);
+
+      await loadVideos();
+
+      // 次の動画を自動選択
+      setSelectedVideoId((prev) => {
+        const remaining = videos.filter((v) => v.id !== prev);
+        return remaining.length > 0 ? remaining[0].id : null;
+      });
+
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "動画削除に失敗しました");
     }
   };
 
@@ -500,6 +563,17 @@ function App() {
               <span>{selectedVideo.description || "説明なし"}</span>
             </div>
           )}
+
+          {selectedVideo && (
+            <div className="video-actions">
+              <button onClick={openEditVideoModal}>
+                編集
+              </button>
+              <button className="delete-button" onClick={handleDeleteVideo}>
+                削除
+              </button>
+            </div>
+          )}
         </section>
 
         <div className="scene-toolbar">
@@ -539,6 +613,7 @@ function App() {
                     scene={scene}
                     onOpenDetail={openDetailModal}
                     onDelete={handleDelete}
+                    onDuplicate={handleDuplicate}
                     dragDisabled={isSearching}
                   />
                 ))}

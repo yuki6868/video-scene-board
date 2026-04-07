@@ -25,3 +25,31 @@ export async function createVideo(video) {
 
   return response.json();
 }
+
+export async function updateVideo(videoId, video) {
+  const response = await fetch(`${API_BASE_URL}/videos/${videoId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(video),
+  });
+
+  if (!response.ok) {
+    throw new Error("動画更新に失敗しました");
+  }
+
+  return response.json();
+}
+
+export async function deleteVideo(videoId) {
+  const response = await fetch(`${API_BASE_URL}/videos/${videoId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("動画削除に失敗しました");
+  }
+
+  return response.json();
+}

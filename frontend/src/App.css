@@ -281,3 +281,12 @@
   padding: 32px;
   color: #666;
 }
+
+.video-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.duplicate-button {
+  background: #0f766e !important;
+}
