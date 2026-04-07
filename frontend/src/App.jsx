@@ -101,6 +101,19 @@ function getPriorityClassName(priority) {
   }
 }
 
+function getPriorityOrder(priority) {
+  switch (priority) {
+    case "高":
+      return 0;
+    case "中":
+      return 1;
+    case "低":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
 function getStatusClassName(status) {
   switch (status) {
     case "draft":
@@ -552,11 +565,20 @@ function App() {
     });
   }, [scenes, searchText]);
 
+  const sortTasksByPriority = (taskList) => {
+    return [...taskList].sort((a, b) => {
+      const priorityDiff = getPriorityOrder(a.priority) - getPriorityOrder(b.priority);
+      if (priorityDiff !== 0) return priorityDiff;
+
+      return b.id - a.id;
+    });
+  };
+
   const taskColumns = useMemo(() => {
     return {
-      未着手: tasks.filter((task) => task.status === "未着手"),
-      作業中: tasks.filter((task) => task.status === "作業中"),
-      完了: tasks.filter((task) => task.status === "完了"),
+      未着手: sortTasksByPriority(tasks.filter((task) => task.status === "未着手")),
+      作業中: sortTasksByPriority(tasks.filter((task) => task.status === "作業中")),
+      完了: sortTasksByPriority(tasks.filter((task) => task.status === "完了")),
     };
   }, [tasks]);
 
@@ -636,6 +658,19 @@ function App() {
       [name]: value,
     }));
   };
+
+  function getTaskPriorityCardClass(priority) {
+    switch (priority) {
+      case "高":
+        return "task-card-priority-high";
+      case "中":
+        return "task-card-priority-medium";
+      case "低":
+        return "task-card-priority-low";
+      default:
+        return "";
+    }
+  }
 
   async function handleDeleteTask(taskId) {
     if (!selectedVideo) return;
@@ -1030,7 +1065,10 @@ function App() {
                             );
 
                             return (
-                              <article key={task.id} className="task-card">
+                              <article
+                                key={task.id}
+                                className={`task-card ${getTaskPriorityCardClass(task.priority)}`}
+                              >
                                 <div className="task-card-header">
                                   <h4>{task.title}</h4>
                                   <div className="task-badge-group">
