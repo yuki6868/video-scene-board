@@ -32,6 +32,7 @@ class Scene(Base):
     edit_note = Column(Text, nullable=True)
 
     video = relationship("Video", back_populates="scenes")
+    assets = relationship("Asset", back_populates="scene")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

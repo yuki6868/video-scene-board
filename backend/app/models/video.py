@@ -22,6 +22,11 @@ class Video(Base):
         cascade="all, delete-orphan",
         order_by="Scene.position",
     )
+    assets = relationship(
+        "Asset",
+        back_populates="video",
+        cascade="all, delete-orphan",
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
