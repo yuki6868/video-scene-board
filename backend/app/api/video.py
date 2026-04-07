@@ -14,6 +14,9 @@ def create_video(video: VideoCreate, db: Session = Depends(get_db)):
     new_video = Video(
         title=video.title,
         description=video.description,
+        concept=video.concept,
+        target=video.target,
+        goal=video.goal,
         status=video.status,
     )
     db.add(new_video)
@@ -44,6 +47,9 @@ def update_video(video_id: int, video_data: VideoUpdate, db: Session = Depends(g
 
     video.title = video_data.title
     video.description = video_data.description
+    video.concept = video_data.concept
+    video.target = video_data.target
+    video.goal = video_data.goal
     video.status = video_data.status
 
     db.commit()

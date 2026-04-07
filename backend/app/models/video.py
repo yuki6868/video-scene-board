@@ -11,6 +11,9 @@ class Video(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    concept = Column(String, nullable=True)
+    target = Column(String, nullable=True)
+    goal = Column(String, nullable=True)
     status = Column(String(50), nullable=False, default="draft")
 
     scenes = relationship(

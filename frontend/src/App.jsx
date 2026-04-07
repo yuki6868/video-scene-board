@@ -35,6 +35,9 @@ const initialSceneForm = {
 const initialVideoForm = {
   title: "",
   description: "",
+  concept: "",
+  target: "",
+  goal: "",
   status: "draft",
 };
 
@@ -262,6 +265,27 @@ function VideoModal({ isOpen, form, editingVideoId, onChange, onSubmit, onClose 
             rows={5}
           />
 
+          <input
+            name="concept"
+            placeholder="コンセプト"
+            value={form.concept || ""}
+            onChange={onChange}
+          />
+
+          <input
+            name="target"
+            placeholder="ターゲット"
+            value={form.target || ""}
+            onChange={onChange}
+          />
+
+          <input
+            name="goal"
+            placeholder="狙い"
+            value={form.goal || ""}
+            onChange={onChange}
+          />
+
           <select name="status" value={form.status} onChange={onChange}>
             <option value="draft">draft</option>
             <option value="in_progress">in_progress</option>
@@ -404,6 +428,9 @@ function App() {
     setVideoForm({
       title: selectedVideo.title,
       description: selectedVideo.description || "",
+      concept: selectedVideo.concept || "",
+      target: selectedVideo.target || "",
+      goal: selectedVideo.goal || "",
       status: selectedVideo.status,
     });
 
