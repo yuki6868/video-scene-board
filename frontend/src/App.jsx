@@ -43,6 +43,50 @@ function truncateText(text, maxLength = 80) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
+function getStatusLabel(status) {
+  switch (status) {
+    case "draft":
+      return "下書き";
+    case "in_progress":
+      return "制作中";
+    case "done":
+      return "完了";
+    default:
+      return status;
+  }
+}
+
+function getStatusClassName(status) {
+  switch (status) {
+    case "draft":
+      return "status-badge status-draft";
+    case "in_progress":
+      return "status-badge status-in-progress";
+    case "done":
+      return "status-badge status-done";
+    default:
+      return "status-badge";
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return "未設定";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "未設定";
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -91,6 +135,10 @@ function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled
           <strong>素材</strong>
           <p>{truncateText(scene.materials, 60)}</p>
         </div>
+      </div>
+
+      <div className="scene-updated-at">
+        更新: {formatDateTime(scene.updated_at)}
       </div>
 
       <div className="card-actions">
@@ -177,14 +225,14 @@ function SceneModal({
   );
 }
 
-function VideoModal({ isOpen, form, onChange, onSubmit, onClose }) {
+function VideoModal({ isOpen, form, editingVideoId, onChange, onSubmit, onClose }) {
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>動画追加</h2>
+          <h2>{editingVideoId ? "動画編集" : "動画追加"}</h2>
           <button type="button" className="modal-close" onClick={onClose}>
             ×
           </button>
@@ -214,7 +262,7 @@ function VideoModal({ isOpen, form, onChange, onSubmit, onClose }) {
           </select>
 
           <div className="form-actions">
-            <button type="submit">追加</button>
+            <button type="submit">{editingVideoId ? "更新" : "追加"}</button>
             <button
               type="button"
               className="cancel-button"
@@ -344,17 +392,17 @@ function App() {
   };
 
   const openEditVideoModal = () => {
-  if (!selectedVideo) return;
+    if (!selectedVideo) return;
 
-  setVideoForm({
-    title: selectedVideo.title,
-    description: selectedVideo.description || "",
-    status: selectedVideo.status,
-  });
+    setVideoForm({
+      title: selectedVideo.title,
+      description: selectedVideo.description || "",
+      status: selectedVideo.status,
+    });
 
-  setEditingVideoId(selectedVideo.id);
-  setIsVideoModalOpen(true);
-};
+    setEditingVideoId(selectedVideo.id);
+    setIsVideoModalOpen(true);
+  };
 
   const openDetailModal = (scene) => {
     setSceneForm({
@@ -566,7 +614,7 @@ function App() {
               ) : (
                 videos.map((video) => (
                   <option key={video.id} value={video.id}>
-                    {video.title}
+                    {video.title}（{getStatusLabel(video.status)}）
                   </option>
                 ))
               )}
@@ -575,8 +623,19 @@ function App() {
 
           {selectedVideo && (
             <div className="selected-video-summary">
-              <strong>{selectedVideo.title}</strong>
+              <div className="selected-video-top">
+                <strong>{selectedVideo.title}</strong>
+                <span className={getStatusClassName(selectedVideo.status)}>
+                  {getStatusLabel(selectedVideo.status)}
+                </span>
+              </div>
+
               <span>{selectedVideo.description || "説明なし"}</span>
+
+              <div className="video-datetime-list">
+                <span>作成: {formatDateTime(selectedVideo.created_at)}</span>
+                <span>更新: {formatDateTime(selectedVideo.updated_at)}</span>
+              </div>
             </div>
           )}
 
@@ -654,6 +713,7 @@ function App() {
       <VideoModal
         isOpen={isVideoModalOpen}
         form={videoForm}
+        editingVideoId={editingVideoId}
         onChange={handleVideoChange}
         onSubmit={handleVideoSubmit}
         onClose={closeVideoModal}
