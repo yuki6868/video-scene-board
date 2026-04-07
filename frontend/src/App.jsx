@@ -18,6 +18,11 @@ const initialForm = {
   materials: "",
 };
 
+function truncateText(text, maxLength = 80) {
+  if (!text) return "未設定";
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
 function SortableItem({ scene, onOpenDetail, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: scene.id });
@@ -54,12 +59,12 @@ function SortableItem({ scene, onOpenDetail, onDelete }) {
 
         <div className="scene-section">
           <strong>台本</strong>
-          <p>{scene.script || "未設定"}</p>
+          <p>{truncateText(scene.script, 100)}</p>
         </div>
 
         <div className="scene-section">
           <strong>素材</strong>
-          <p>{scene.materials || "未設定"}</p>
+          <p>{truncateText(scene.materials, 60)}</p>
         </div>
       </div>
 
@@ -91,10 +96,7 @@ function SceneModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{editingSceneId ? "シーン編集" : "シーン追加"}</h2>
           <button type="button" className="modal-close" onClick={onClose}>

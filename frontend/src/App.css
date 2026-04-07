@@ -281,3 +281,7 @@
 .cancel-button {
   background: #777;
 }
+
+.scene-card-body p {
+  line-height: 1.5;
+}
