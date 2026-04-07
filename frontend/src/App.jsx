@@ -30,6 +30,21 @@ const initialSceneForm = {
   title: "",
   script: "",
   materials: "",
+  position: 0,
+
+  section_type: "",
+  status: "未着手",
+  duration_seconds: "",
+
+  audio_path: "",
+  character_name: "",
+  character_expression: "",
+  background_path: "",
+  se_path: "",
+
+  telop: "",
+  direction: "",
+  edit_note: "",
 };
 
 const initialVideoForm = {
@@ -219,6 +234,45 @@ function SceneModal({
             rows={6}
           />
 
+          {/* セクション */}
+          <select name="section_type" value={form.section_type || ""} onChange={onChange}>
+            <option value="">選択</option>
+            <option value="導入">導入</option>
+            <option value="展開">展開</option>
+            <option value="対立">対立</option>
+            <option value="オチ">オチ</option>
+          </select>
+
+          {/* ステータス */}
+          <select name="status" value={form.status} onChange={onChange}>
+            <option value="未着手">未着手</option>
+            <option value="作業中">作業中</option>
+            <option value="完了">完了</option>
+          </select>
+
+          {/* 秒数 */}
+          <input
+            name="duration_seconds"
+            type="number"
+            placeholder="秒数"
+            value={form.duration_seconds || ""}
+            onChange={onChange}
+          />
+
+          {/* キャラ */}
+          <input name="character_name" placeholder="キャラ名" value={form.character_name || ""} onChange={onChange} />
+          <input name="character_expression" placeholder="表情" value={form.character_expression || ""} onChange={onChange} />
+
+          {/* パス */}
+          <input name="audio_path" placeholder="音声パス" value={form.audio_path || ""} onChange={onChange} />
+          <input name="background_path" placeholder="背景パス" value={form.background_path || ""} onChange={onChange} />
+          <input name="se_path" placeholder="SEパス" value={form.se_path || ""} onChange={onChange} />
+
+          {/* テキスト系 */}
+          <textarea name="telop" placeholder="テロップ" value={form.telop || ""} onChange={onChange} />
+          <textarea name="direction" placeholder="演出指示" value={form.direction || ""} onChange={onChange} />
+          <textarea name="edit_note" placeholder="編集メモ" value={form.edit_note || ""} onChange={onChange} />
+
           <div className="form-actions">
             <button type="submit">{editingSceneId ? "更新" : "追加"}</button>
             <button
@@ -317,6 +371,7 @@ function App() {
   const [videoForm, setVideoForm] = useState(initialVideoForm);
 
   const [editingSceneId, setEditingSceneId] = useState(null);
+  const [selectedScene, setSelectedScene] = useState(null);
   const [isSceneModalOpen, setIsSceneModalOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
@@ -439,11 +494,16 @@ function App() {
   };
 
   const openDetailModal = (scene) => {
+    setSelectedScene(scene);
+
     setSceneForm({
+      ...scene,
       title: scene.title || "",
       script: scene.script || "",
       materials: scene.materials || "",
+      duration_seconds: scene.duration_seconds || "",
     });
+
     setEditingSceneId(scene.id);
     setIsSceneModalOpen(true);
   };
@@ -462,6 +522,19 @@ function App() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      ...sceneForm,
+      duration_seconds: sceneForm.duration_seconds
+        ? parseInt(sceneForm.duration_seconds)
+        : null,
+    };
+
+    await createScene(payload);
   };
 
   const handleDragEnd = async (event) => {
