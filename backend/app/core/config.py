@@ -1,5 +1,6 @@
-class Settings:
-    app_name: str = "Video Scene Board"
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
-settings = Settings()
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./video_scene_board.db")
