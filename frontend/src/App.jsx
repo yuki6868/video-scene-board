@@ -552,6 +552,14 @@ function App() {
     });
   }, [scenes, searchText]);
 
+  const taskColumns = useMemo(() => {
+    return {
+      未着手: tasks.filter((task) => task.status === "未着手"),
+      作業中: tasks.filter((task) => task.status === "作業中"),
+      完了: tasks.filter((task) => task.status === "完了"),
+    };
+  }, [tasks]);
+
   const resetSceneForm = () => {
     setSceneForm(initialSceneForm);
     setEditingSceneId(null);
@@ -941,119 +949,156 @@ function App() {
             </div>
           )}
 
-          <div className="task-create-form">
-            <h3>TODO追加</h3>
-
-            <input
-              type="text"
-              placeholder="タイトル"
-              value={newTask.title}
-              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            />
-
-            <textarea
-              placeholder="詳細"
-              value={newTask.detail}
-              onChange={(e) => setNewTask({ ...newTask, detail: e.target.value })}
-            />
-
-            <select
-              value={newTask.scene_id || ""}
-              onChange={(e) =>
-                setNewTask({
-                  ...newTask,
-                  scene_id: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            >
-              <option value="">動画全体</option>
-              {scenes.map((scene) => (
-                <option key={scene.id} value={scene.id}>
-                  Scene #{scene.position + 1} {scene.title}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={newTask.priority}
-              onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-            >
-              <option value="高">高</option>
-              <option value="中">中</option>
-              <option value="低">低</option>
-            </select>
-
-            <button onClick={handleCreateTask}>追加</button>
-          </div>
-
           {selectedVideo && (
             <section className="task-panel">
               <div className="task-panel-header">
                 <div>
-                  <h2>TODO一覧</h2>
-                  <p>動画全体・シーンごとの作業タスクを確認できます。</p>
+                  <h2>TODOボード</h2>
+                  <p>ステータスごとにタスクを確認できます。</p>
                 </div>
+              </div>
+
+              <div className="task-create-form">
+                <h3>TODO追加</h3>
+
+                <input
+                  type="text"
+                  placeholder="タイトル"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                />
+
+                <textarea
+                  placeholder="詳細"
+                  value={newTask.detail}
+                  onChange={(e) => setNewTask({ ...newTask, detail: e.target.value })}
+                />
+
+                <select
+                  value={newTask.scene_id || ""}
+                  onChange={(e) =>
+                    setNewTask({
+                      ...newTask,
+                      scene_id: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                >
+                  <option value="">動画全体</option>
+                  {scenes.map((scene) => (
+                    <option key={scene.id} value={scene.id}>
+                      Scene #{scene.position + 1} {scene.title}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+                >
+                  <option value="高">高</option>
+                  <option value="中">中</option>
+                  <option value="低">低</option>
+                </select>
+
+                <button type="button" className="submit-button" onClick={handleCreateTask}>
+                  追加
+                </button>
               </div>
 
               {tasksLoading ? (
                 <p className="empty-state">TODOを読み込み中です...</p>
               ) : tasksError ? (
                 <p className="error-message">{tasksError}</p>
-              ) : tasks.length === 0 ? (
-                <p className="empty-state">TODOはまだありません。</p>
               ) : (
-                <div className="task-list">
-                  {tasks.map((task) => {
-                    const relatedScene = scenes.find((scene) => scene.id === task.scene_id);
+                <div className="task-board">
+                  {["未着手", "作業中", "完了"].map((status) => (
+                    <section key={status} className="task-column">
+                      <div className="task-column-header">
+                        <h3>{status}</h3>
+                        <span className="task-column-count">
+                          {taskColumns[status].length}件
+                        </span>
+                      </div>
 
-                    return (
-                      <article key={task.id} className="task-card">
-                        <div className="task-card-header">
-                          <h3>{task.title}</h3>
-                          <div className="task-badge-group">
-                            <span className={getPriorityClassName(task.priority)}>
-                              優先度: {task.priority}
-                            </span>
-                            <span className={getTaskStatusClassName(task.status)}>
-                              {task.status}
-                            </span>
-                          </div>
-                        </div>
+                      <div className="task-column-body">
+                        {taskColumns[status].length === 0 ? (
+                          <p className="task-column-empty">タスクはありません</p>
+                        ) : (
+                          taskColumns[status].map((task) => {
+                            const relatedScene = scenes.find(
+                              (scene) => scene.id === task.scene_id
+                            );
 
-                        <div className="task-meta">
-                          <span className="task-meta-item">種別: {task.task_type || "未設定"}</span>
-                          <span className="task-meta-item">
-                            対象:
-                            {" "}
-                            {relatedScene
-                              ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
-                              : "動画全体"}
-                          </span>
-                        </div>
+                            return (
+                              <article key={task.id} className="task-card">
+                                <div className="task-card-header">
+                                  <h4>{task.title}</h4>
+                                  <div className="task-badge-group">
+                                    <span className={getPriorityClassName(task.priority)}>
+                                      優先度: {task.priority}
+                                    </span>
+                                  </div>
+                                </div>
 
-                        <div className="task-actions">
-                          <button onClick={() => handleUpdateTaskStatus(task, "未着手")}>
-                            未着手
-                          </button>
-                          <button onClick={() => handleUpdateTaskStatus(task, "作業中")}>
-                            作業中
-                          </button>
-                          <button onClick={() => handleUpdateTaskStatus(task, "完了")}>
-                            完了
-                          </button>
-                          <button
-                            type="button"
-                            className="delete-button"
-                            onClick={() => handleDeleteTask(task.id)}
-                          >
-                            削除
-                          </button>
-                        </div>
+                                <div className="task-meta">
+                                  <span className="task-meta-item">
+                                    種別: {task.task_type || "未設定"}
+                                  </span>
+                                  <span className="task-meta-item">
+                                    対象:{" "}
+                                    {relatedScene
+                                      ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+                                      : "動画全体"}
+                                  </span>
+                                </div>
 
-                        <p className="task-detail">{task.detail || "詳細は未設定です。"}</p>
-                      </article>
-                    );
-                  })}
+                                <p className="task-detail">
+                                  {task.detail || "詳細は未設定です。"}
+                                </p>
+
+                                <div className="task-actions">
+                                  {status !== "未着手" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTaskStatus(task, "未着手")}
+                                    >
+                                      未着手へ
+                                    </button>
+                                  )}
+
+                                  {status !== "作業中" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTaskStatus(task, "作業中")}
+                                    >
+                                      作業中へ
+                                    </button>
+                                  )}
+
+                                  {status !== "完了" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTaskStatus(task, "完了")}
+                                    >
+                                      完了へ
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    className="delete-button"
+                                    onClick={() => handleDeleteTask(task.id)}
+                                  >
+                                    削除
+                                  </button>
+                                </div>
+                              </article>
+                            );
+                          })
+                        )}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               )}
             </section>
