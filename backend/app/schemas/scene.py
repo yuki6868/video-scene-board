@@ -16,6 +16,11 @@ class SceneUpdate(BaseModel):
     position: int
 
 
+class SceneReorderItem(BaseModel):
+    id: int
+    position: int
+
+
 class SceneResponse(BaseModel):
     id: int
     title: str

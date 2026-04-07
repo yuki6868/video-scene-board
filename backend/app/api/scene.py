@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.models.scene import Scene
-from app.schemas.scene import SceneCreate, SceneResponse, SceneUpdate
+from app.schemas.scene import (
+    SceneCreate,
+    SceneResponse,
+    SceneReorderItem,
+    SceneUpdate,
+)
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 
@@ -61,3 +66,22 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     db.delete(scene)
     db.commit()
     return {"message": "Scene deleted"}
+
+
+@router.put("/reorder", response_model=list[SceneResponse])
+def reorder_scenes(items: list[SceneReorderItem], db: Session = Depends(get_db)):
+    ids = [item.id for item in items]
+
+    scenes = db.query(Scene).filter(Scene.id.in_(ids)).all()
+    scene_map = {scene.id: scene for scene in scenes}
+
+    if len(scene_map) != len(items):
+        raise HTTPException(status_code=404, detail="Some scenes were not found")
+
+    for item in items:
+        scene_map[item.id].position = item.position
+
+    db.commit()
+
+    updated_scenes = db.query(Scene).order_by(Scene.position.asc(), Scene.id.asc()).all()
+    return updated_scenes
