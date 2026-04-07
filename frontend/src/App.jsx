@@ -18,7 +18,13 @@ import {
   reorderScenes,
   duplicateScene,
 } from "./api/sceneApi";
-import { fetchVideos, createVideo, updateVideo, deleteVideo } from "./api/videoApi";
+import {
+  fetchVideos,
+  createVideo,
+  updateVideo,
+  deleteVideo,
+  duplicateVideo,
+} from "./api/videoApi";
 
 const initialSceneForm = {
   title: "",
@@ -487,23 +493,33 @@ function App() {
     }
   };
 
+  const handleDuplicateVideo = async () => {
+    if (!selectedVideoId) return;
+
+    try {
+      const duplicated = await duplicateVideo(selectedVideoId);
+      await loadVideos();
+      setSelectedVideoId(duplicated.id);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "動画複製に失敗しました");
+    }
+  };
+
   const handleDeleteVideo = async () => {
     if (!selectedVideoId) return;
 
+    const deletingId = selectedVideoId;
     const ok = window.confirm("この動画を削除しますか？（シーンも全部消えます）");
     if (!ok) return;
 
     try {
-      await deleteVideo(selectedVideoId);
+      await deleteVideo(deletingId);
 
+      const nextVideos = videos.filter((v) => v.id !== deletingId);
       await loadVideos();
 
-      // 次の動画を自動選択
-      setSelectedVideoId((prev) => {
-        const remaining = videos.filter((v) => v.id !== prev);
-        return remaining.length > 0 ? remaining[0].id : null;
-      });
-
+      setSelectedVideoId(nextVideos.length > 0 ? nextVideos[0].id : null);
     } catch (error) {
       console.error(error);
       alert(error.message || "動画削除に失敗しました");
@@ -568,6 +584,9 @@ function App() {
             <div className="video-actions">
               <button onClick={openEditVideoModal}>
                 編集
+              </button>
+              <button type="button" className="duplicate-button" onClick={handleDuplicateVideo}>
+                複製
               </button>
               <button className="delete-button" onClick={handleDeleteVideo}>
                 削除

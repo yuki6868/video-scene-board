@@ -53,3 +53,15 @@ export async function deleteVideo(videoId) {
 
   return response.json();
 }
+
+export async function duplicateVideo(videoId) {
+  const response = await fetch(`${API_BASE_URL}/videos/${videoId}/duplicate`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("動画複製に失敗しました");
+  }
+
+  return response.json();
+}

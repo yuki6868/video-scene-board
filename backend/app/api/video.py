@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.models.video import Video
+from app.models.scene import Scene
 from app.schemas.video import VideoCreate, VideoResponse, VideoUpdate
 
 router = APIRouter(prefix="/videos", tags=["videos"])
@@ -48,6 +49,43 @@ def update_video(video_id: int, video_data: VideoUpdate, db: Session = Depends(g
     db.commit()
     db.refresh(video)
     return video
+
+
+@router.post("/{video_id}/duplicate", response_model=VideoResponse)
+def duplicate_video(video_id: int, db: Session = Depends(get_db)):
+    source_video = db.query(Video).filter(Video.id == video_id).first()
+    if source_video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    duplicated_video = Video(
+        title=f"{source_video.title}（複製）",
+        description=source_video.description,
+        status="draft",
+    )
+    db.add(duplicated_video)
+    db.flush()
+
+    source_scenes = (
+        db.query(Scene)
+        .filter(Scene.video_id == source_video.id)
+        .order_by(Scene.position.asc(), Scene.id.asc())
+        .all()
+    )
+
+    for scene in source_scenes:
+        duplicated_scene = Scene(
+            video_id=duplicated_video.id,
+            title=scene.title,
+            script=scene.script,
+            materials=scene.materials,
+            position=scene.position,
+        )
+        db.add(duplicated_scene)
+
+    db.commit()
+    db.refresh(duplicated_video)
+
+    return duplicated_video
 
 
 @router.delete("/{video_id}")
