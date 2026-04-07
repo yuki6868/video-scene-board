@@ -2,8 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.scene import router as scene_router
+from app.api.video import router as video_router
 from app.db.database import Base, engine
 from app.models.scene import Scene
+from app.models.video import Video
 
 Base.metadata.create_all(bind=engine)
 
@@ -18,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(scene_router)
+app.include_router(video_router)
 
 
 @app.get("/")
