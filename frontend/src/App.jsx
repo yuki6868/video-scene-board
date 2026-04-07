@@ -25,6 +25,7 @@ import {
   deleteVideo,
   duplicateVideo,
 } from "./api/videoApi";
+import { fetchTasks } from "./api/taskApi";
 
 const initialSceneForm = {
   title: "",
@@ -71,6 +72,32 @@ function getStatusLabel(status) {
       return "完了";
     default:
       return status;
+  }
+}
+
+function getTaskStatusClassName(status) {
+  switch (status) {
+    case "未着手":
+      return "task-badge task-status-todo";
+    case "作業中":
+      return "task-badge task-status-doing";
+    case "完了":
+      return "task-badge task-status-done";
+    default:
+      return "task-badge";
+  }
+}
+
+function getPriorityClassName(priority) {
+  switch (priority) {
+    case "高":
+      return "task-badge task-priority-high";
+    case "中":
+      return "task-badge task-priority-medium";
+    case "低":
+      return "task-badge task-priority-low";
+    default:
+      return "task-badge";
   }
 }
 
@@ -413,6 +440,10 @@ function App() {
   const [sceneForm, setSceneForm] = useState(initialSceneForm);
   const [videoForm, setVideoForm] = useState(initialVideoForm);
 
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState("");
+
   const [editingSceneId, setEditingSceneId] = useState(null);
   const [selectedScene, setSelectedScene] = useState(null);
   const [isSceneModalOpen, setIsSceneModalOpen] = useState(false);
@@ -436,6 +467,8 @@ function App() {
       if (data.length === 0) {
         setSelectedVideoId(null);
         setScenes([]);
+        setTasks([]);
+        setTasksError("");
         return;
       }
 
@@ -449,9 +482,26 @@ function App() {
     }
   };
 
+  async function loadTasks(videoId) {
+    setTasksLoading(true);
+    setTasksError("");
+
+    try {
+      const data = await fetchTasks({ videoId });
+      setTasks(data);
+    } catch (error) {
+      console.error(error);
+      setTasksError("TODO一覧の取得に失敗しました。");
+    } finally {
+      setTasksLoading(false);
+    }
+  }
+
   const loadScenes = async (videoId) => {
     if (!videoId) {
       setScenes([]);
+      setTasks([]);
+      setTasksError("");
       return;
     }
 
@@ -471,8 +521,11 @@ function App() {
   useEffect(() => {
     if (selectedVideoId) {
       loadScenes(selectedVideoId);
+      loadTasks(selectedVideoId);
     } else {
       setScenes([]);
+      setTasks([]);
+      setTasksError("");
     }
   }, [selectedVideoId]);
 
@@ -609,6 +662,7 @@ function App() {
       console.error(error);
       alert(error.message || "シーン並び替えに失敗しました");
       loadScenes(selectedVideoId);
+      loadTasks(selectedVideoId);
     }
   };
 
@@ -634,6 +688,7 @@ function App() {
     try {
       await duplicateScene(sceneId);
       await loadScenes(selectedVideoId);
+      await loadTasks(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン複製に失敗しました");
@@ -678,6 +733,7 @@ function App() {
 
       closeSceneModal();
       await loadScenes(selectedVideoId);
+      await loadTasks(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "保存に失敗しました");
@@ -814,6 +870,60 @@ function App() {
                 削除
               </button>
             </div>
+          )}
+
+          {selectedVideo && (
+            <section className="task-panel">
+              <div className="task-panel-header">
+                <div>
+                  <h2>TODO一覧</h2>
+                  <p>動画全体・シーンごとの作業タスクを確認できます。</p>
+                </div>
+              </div>
+
+              {tasksLoading ? (
+                <p className="empty-state">TODOを読み込み中です...</p>
+              ) : tasksError ? (
+                <p className="error-message">{tasksError}</p>
+              ) : tasks.length === 0 ? (
+                <p className="empty-state">TODOはまだありません。</p>
+              ) : (
+                <div className="task-list">
+                  {tasks.map((task) => {
+                    const relatedScene = scenes.find((scene) => scene.id === task.scene_id);
+
+                    return (
+                      <article key={task.id} className="task-card">
+                        <div className="task-card-header">
+                          <h3>{task.title}</h3>
+                          <div className="task-badge-group">
+                            <span className={getPriorityClassName(task.priority)}>
+                              優先度: {task.priority}
+                            </span>
+                            <span className={getTaskStatusClassName(task.status)}>
+                              {task.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="task-meta">
+                          <span className="task-meta-item">種別: {task.task_type || "未設定"}</span>
+                          <span className="task-meta-item">
+                            対象:
+                            {" "}
+                            {relatedScene
+                              ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+                              : "動画全体"}
+                          </span>
+                        </div>
+
+                        <p className="task-detail">{task.detail || "詳細は未設定です。"}</p>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           )}
         </section>
 
