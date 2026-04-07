@@ -104,6 +104,29 @@ function App() {
     }
   };
 
+  const handleDelete = async (sceneId) => {
+    const ok = window.confirm("このシーンを削除しますか？");
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/scenes/${sceneId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("シーン削除に失敗しました");
+      }
+
+      if (editingSceneId === sceneId) {
+        resetForm();
+      }
+
+      await loadScenes();
+    } catch (err) {
+      alert(err.message || "削除に失敗しました");
+    }
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -181,6 +204,13 @@ function App() {
                 <div className="card-actions">
                   <button type="button" onClick={() => handleEdit(scene)}>
                     編集
+                  </button>
+                  <button
+                    type="button"
+                    className="delete-button"
+                    onClick={() => handleDelete(scene.id)}
+                  >
+                    削除
                   </button>
                 </div>
               </article>

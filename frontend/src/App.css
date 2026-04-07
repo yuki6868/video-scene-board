@@ -121,3 +121,25 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
+.card-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.card-actions button {
+  padding: 8px 12px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.card-actions button:first-child {
+  background: #2563eb;
+}
+
+.delete-button {
+  background: #dc2626;
+}
