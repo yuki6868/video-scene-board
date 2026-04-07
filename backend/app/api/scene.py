@@ -26,6 +26,17 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
         script=scene.script,
         materials=scene.materials,
         position=scene.position,
+        section_type=scene.section_type,
+        status=scene.status,
+        duration_seconds=scene.duration_seconds,
+        audio_path=scene.audio_path,
+        character_name=scene.character_name,
+        character_expression=scene.character_expression,
+        background_path=scene.background_path,
+        se_path=scene.se_path,
+        telop=scene.telop,
+        direction=scene.direction,
+        edit_note=scene.edit_note,
     )
     db.add(new_scene)
     db.commit()
@@ -99,6 +110,18 @@ def update_scene(scene_id: int, scene_data: SceneUpdate, db: Session = Depends(g
     scene.materials = scene_data.materials
     scene.position = scene_data.position
 
+    scene.section_type = scene_data.section_type
+    scene.status = scene_data.status
+    scene.duration_seconds = scene_data.duration_seconds
+    scene.audio_path = scene_data.audio_path
+    scene.character_name = scene_data.character_name
+    scene.character_expression = scene_data.character_expression
+    scene.background_path = scene_data.background_path
+    scene.se_path = scene_data.se_path
+    scene.telop = scene_data.telop
+    scene.direction = scene_data.direction
+    scene.edit_note = scene_data.edit_note
+
     db.commit()
     db.refresh(scene)
     return scene
@@ -125,6 +148,17 @@ def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
         script=source_scene.script,
         materials=source_scene.materials,
         position=next_position,
+        section_type=source_scene.section_type,
+        status=source_scene.status,
+        duration_seconds=source_scene.duration_seconds,
+        audio_path=source_scene.audio_path,
+        character_name=source_scene.character_name,
+        character_expression=source_scene.character_expression,
+        background_path=source_scene.background_path,
+        se_path=source_scene.se_path,
+        telop=source_scene.telop,
+        direction=source_scene.direction,
+        edit_note=source_scene.edit_note,
     )
 
     db.add(duplicated_scene)

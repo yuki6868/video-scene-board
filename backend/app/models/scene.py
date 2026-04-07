@@ -10,10 +10,26 @@ class Scene(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     video_id = Column(Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False, index=True)
+
     title = Column(String(255), nullable=False)
     script = Column(Text, nullable=True)
     materials = Column(Text, nullable=True)
     position = Column(Integer, nullable=False, default=0)
+
+
+    section_type = Column(String(50), nullable=True)       # 導入 / 展開 / 対立 / オチ
+    status = Column(String(50), nullable=False, default="未着手")
+    duration_seconds = Column(Integer, nullable=True)
+
+    audio_path = Column(String(500), nullable=True)
+    character_name = Column(String(255), nullable=True)
+    character_expression = Column(String(255), nullable=True)
+    background_path = Column(String(500), nullable=True)
+    se_path = Column(String(500), nullable=True)
+
+    telop = Column(Text, nullable=True)
+    direction = Column(Text, nullable=True)
+    edit_note = Column(Text, nullable=True)
 
     video = relationship("Video", back_populates="scenes")
 

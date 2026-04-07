@@ -28,9 +28,39 @@ def migrate_video_columns():
 
         conn.commit()
 
+def migrate_scene_columns():
+    with engine.connect() as conn:
+        statements = [
+            "ALTER TABLE scenes ADD COLUMN section_type VARCHAR(50)",
+            "ALTER TABLE scenes ADD COLUMN status VARCHAR(50) DEFAULT '未着手' NOT NULL",
+            "ALTER TABLE scenes ADD COLUMN duration_seconds INTEGER",
+            "ALTER TABLE scenes ADD COLUMN audio_path VARCHAR(500)",
+            "ALTER TABLE scenes ADD COLUMN character_name VARCHAR(255)",
+            "ALTER TABLE scenes ADD COLUMN character_expression VARCHAR(255)",
+            "ALTER TABLE scenes ADD COLUMN background_path VARCHAR(500)",
+            "ALTER TABLE scenes ADD COLUMN se_path VARCHAR(500)",
+            "ALTER TABLE scenes ADD COLUMN telop TEXT",
+            "ALTER TABLE scenes ADD COLUMN direction TEXT",
+            "ALTER TABLE scenes ADD COLUMN edit_note TEXT",
+        ]
+
+        for stmt in statements:
+            try:
+                conn.execute(text(stmt))
+                print(f"OK: {stmt}")
+            except Exception as e:
+                message = str(e)
+                if "duplicate column name" in message:
+                    print(f"SKIP: {stmt}")
+                else:
+                    print(f"ERROR: {stmt} -> {e}")
+
+        conn.commit()
+
 
 Base.metadata.create_all(bind=engine)
 migrate_video_columns()
+migrate_scene_columns()
 
 app = FastAPI()
 
