@@ -1001,3 +1001,60 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.asset-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.asset-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-field-full {
+  grid-column: 1 / -1;
+}
+
+.asset-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.asset-edit-form input,
+.asset-edit-form select,
+.asset-edit-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.asset-edit-form textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+@media (max-width: 768px) {
+  .asset-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.asset-edit-modal-content {
+  max-width: 720px;
+  width: min(720px, 92vw);
+}
