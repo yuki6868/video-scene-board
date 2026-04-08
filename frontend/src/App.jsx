@@ -271,7 +271,7 @@ function formatDateTime(value) {
   }).format(date);
 }
 
-function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled }) {
+function SortableItem({ scene, progress, onOpenDetail, onDelete, onDuplicate, dragDisabled }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: scene.id,
@@ -351,6 +351,21 @@ function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled
         </div>
       </div>
 
+      <div className="scene-section">
+        <strong>進捗バー</strong>
+        <div className="scene-progress">
+          <div className="scene-progress-track">
+            <div
+              className="scene-progress-fill"
+              style={{ width: `${progress.percent}%` }}
+            />
+          </div>
+          <p className="scene-progress-text">
+            {progress.done}/{progress.total} 完了（{progress.percent}%）
+          </p>
+        </div>
+      </div>
+
       <div className="scene-updated-at">
         更新: {formatDateTime(scene.updated_at)}
       </div>
@@ -388,6 +403,7 @@ function SceneModal({
   onClose,
   loadTasks,
   tasks,
+  handleUpdateTaskStatus,
 }) {
   const [assets, setAssets] = useState([]);
   const [assetForm, setAssetForm] = useState(initialAssetForm);
@@ -745,80 +761,92 @@ function SceneModal({
               </div>
             )}
 
-            <h3>素材</h3>
-
-            {assets.length === 0 ? (
-              <p>素材はありません</p>
-            ) : (
-              <ul>
-                {assets.map((asset) => (
-                  <li key={asset.id}>
-                    {asset.title}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* 👇ここに追加する */}
-            <h3>タスク</h3>
-
-            {sceneTasks.length === 0 ? (
-              <p>タスクはありません</p>
-            ) : (
-              <ul>
-                {sceneTasks.map((task) => (
-                  <li key={task.id}>
-                    {task.title}（{task.status}）
-                  </li>
-                ))}
-              </ul>
-            )}
-
             {!editingSceneId ? (
               <p>シーン追加後に素材を紐づけられます</p>
-            ) : assets.length === 0 ? (
-              <p>素材はまだありません</p>
             ) : (
-              <ul className="asset-list">
-                {assets.map((asset) => (
-                  <li key={asset.id} className="asset-item">
-                    <div><strong>{asset.title}</strong></div>
-                    <div className={`asset-type type-${asset.asset_type}`}>
-                      種別: {getAssetTypeLabel(asset.asset_type)}
-                    </div>
-                    <div className={`asset-status status-${asset.status}`}>
-                      状態: {getAssetStatusLabel(asset.status)}
-                    </div>
-                    {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
-                    {asset.memo && <div>メモ: {asset.memo}</div>}
+              <>
+                {assets.length === 0 ? (
+                  <p>素材はまだありません</p>
+                ) : (
+                  <ul className="asset-list">
+                    {assets.map((asset) => (
+                      <li key={asset.id} className="asset-item">
+                        <div><strong>{asset.title}</strong></div>
+                        <div className={`asset-type type-${asset.asset_type}`}>
+                          種別: {getAssetTypeLabel(asset.asset_type)}
+                        </div>
+                        <div className={`asset-status status-${asset.status}`}>
+                          状態: {getAssetStatusLabel(asset.status)}
+                        </div>
+                        {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
+                        {asset.memo && <div>メモ: {asset.memo}</div>}
 
-                    <div className="asset-item-actions">
-                      <button
-                        type="button"
-                        className="submit-button"
-                        onClick={() => handleGenerateTaskFromAsset(asset)}
-                      >
-                        タスク化
-                      </button>
-                      <button
-                        type="button"
-                        className="submit-button"
-                        onClick={() => handleAssetEditStart(asset)}
-                      >
-                        編集
-                      </button>
+                        <div className="asset-item-actions">
+                          <button
+                            type="button"
+                            className="submit-button"
+                            onClick={() => handleGenerateTaskFromAsset(asset)}
+                          >
+                            タスク化
+                          </button>
+                          <button
+                            type="button"
+                            className="submit-button"
+                            onClick={() => handleAssetEditStart(asset)}
+                          >
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            className="delete-button"
+                            onClick={() => handleAssetDelete(asset.id)}
+                          >
+                            削除
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-                      <button
-                        type="button"
-                        className="delete-button"
-                        onClick={() => handleAssetDelete(asset.id)}
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                <h3>タスク</h3>
+
+                {sceneTasks.length === 0 ? (
+                  <p>タスクはありません</p>
+                ) : (
+                  <ul className="scene-task-list">
+                    {sceneTasks.map((task) => (
+                      <li key={task.id} className="scene-task-item">
+                        <div className="scene-task-header">
+                          <strong>{task.title}</strong>
+                          <span className={getTaskStatusClassName(task.status)}>
+                            {task.status}
+                          </span>
+                        </div>
+
+                        {task.detail ? (
+                          <p className="scene-task-detail">{task.detail}</p>
+                        ) : null}
+
+                        <div className="scene-task-actions">
+                          <button
+                            type="button"
+                            className="submit-button"
+                            onClick={() =>
+                              handleUpdateTaskStatus(
+                                task,
+                                task.status === "完了" ? "未着手" : "完了"
+                              )
+                            }
+                          >
+                            {task.status === "完了" ? "未着手に戻す" : "完了にする"}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </div>
 
@@ -988,6 +1016,27 @@ function App() {
       task_type: task.task_type,
       scene_id: task.scene_id,
     });
+  }
+
+  function getSceneTaskProgress(sceneId) {
+    const relatedTasks = tasks.filter((task) => task.scene_id === sceneId);
+    const total = relatedTasks.length;
+
+    if (total === 0) {
+      return {
+        total: 0,
+        done: 0,
+        percent: 0,
+      };
+    }
+
+    const done = relatedTasks.filter((task) => task.status === "完了").length;
+
+    return {
+      total,
+      done,
+      percent: Math.round((done / total) * 100),
+    };
   }
 
   async function loadTasks() {
@@ -1901,6 +1950,7 @@ function App() {
                   <SortableItem
                     key={scene.id}
                     scene={scene}
+                    progress={getSceneTaskProgress(scene.id)}
                     onOpenDetail={openDetailModal}
                     onDelete={handleDelete}
                     onDuplicate={handleDuplicate}
@@ -1923,6 +1973,7 @@ function App() {
         onClose={closeSceneModal}
         loadTasks={loadTasks}
         tasks={tasks}
+        handleUpdateTaskStatus={handleUpdateTaskStatus}
       />
 
       <VideoModal
