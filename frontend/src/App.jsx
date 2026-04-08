@@ -387,6 +387,7 @@ function SceneModal({
   onSubmit,
   onClose,
   loadTasks,
+  tasks,
 }) {
   const [assets, setAssets] = useState([]);
   const [assetForm, setAssetForm] = useState(initialAssetForm);
@@ -406,6 +407,10 @@ function SceneModal({
       setAssets([]);
     }
   }
+
+  const sceneTasks = (tasks ?? []).filter(
+    (task) => task.scene_id === editingSceneId
+  );
 
   useEffect(() => {
     if (!isOpen || !editingSceneId) {
@@ -740,6 +745,35 @@ function SceneModal({
               </div>
             )}
 
+            <h3>素材</h3>
+
+            {assets.length === 0 ? (
+              <p>素材はありません</p>
+            ) : (
+              <ul>
+                {assets.map((asset) => (
+                  <li key={asset.id}>
+                    {asset.title}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* 👇ここに追加する */}
+            <h3>タスク</h3>
+
+            {sceneTasks.length === 0 ? (
+              <p>タスクはありません</p>
+            ) : (
+              <ul>
+                {sceneTasks.map((task) => (
+                  <li key={task.id}>
+                    {task.title}（{task.status}）
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {!editingSceneId ? (
               <p>シーン追加後に素材を紐づけられます</p>
             ) : assets.length === 0 ? (
@@ -787,6 +821,8 @@ function SceneModal({
               </ul>
             )}
           </div>
+
+
 
           <div className="form-actions">
             <button type="submit" className="submit-button">
@@ -1886,6 +1922,7 @@ function App() {
         onSubmit={handleSceneSubmit}
         onClose={closeSceneModal}
         loadTasks={loadTasks}
+        tasks={tasks}
       />
 
       <VideoModal
