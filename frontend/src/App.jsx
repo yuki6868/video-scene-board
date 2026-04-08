@@ -386,6 +386,7 @@ function SceneModal({
   onChange,
   onSubmit,
   onClose,
+  loadTasks,
 }) {
   const [assets, setAssets] = useState([]);
   const [assetForm, setAssetForm] = useState(initialAssetForm);
@@ -498,6 +499,9 @@ function SceneModal({
   async function handleGenerateTaskFromAsset(asset) {
     try {
       await generateTaskFromAsset(asset.id);
+
+      await loadTasks();
+
       alert(`「${asset.title}」からタスクを生成しました`);
     } catch (err) {
       console.error(err);
@@ -949,6 +953,19 @@ function App() {
       scene_id: task.scene_id,
     });
   }
+
+  async function loadTasks() {
+    try {
+      const data = await fetchTasks();
+      setTasks(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
   function handleCancelEdit() {
     setEditingTaskId(null);
@@ -1868,6 +1885,7 @@ function App() {
         onChange={handleSceneChange}
         onSubmit={handleSceneSubmit}
         onClose={closeSceneModal}
+        loadTasks={loadTasks}
       />
 
       <VideoModal
