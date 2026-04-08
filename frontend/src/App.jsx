@@ -26,11 +26,12 @@ import {
   duplicateVideo,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
-import { 
-  fetchAssets, 
+import {
+  fetchAssets,
   createAsset,
   updateAsset,
   deleteAsset,
+  generateTaskFromAsset,
 } from "./api/assetApi";
 
 
@@ -494,6 +495,16 @@ function SceneModal({
     }
   }
 
+  async function handleGenerateTaskFromAsset(asset) {
+    try {
+      await generateTaskFromAsset(asset.id);
+      alert(`「${asset.title}」からタスクを生成しました`);
+    } catch (err) {
+      console.error(err);
+      alert("素材からタスクを生成できませんでした");
+    }
+  }
+
   if (!isOpen) return null;
 
   return (
@@ -737,7 +748,6 @@ function SceneModal({
                     <div className={`asset-type type-${asset.asset_type}`}>
                       種別: {getAssetTypeLabel(asset.asset_type)}
                     </div>
-                    console.log(asset.asset_type);
                     <div className={`asset-status status-${asset.status}`}>
                       状態: {getAssetStatusLabel(asset.status)}
                     </div>
@@ -745,6 +755,13 @@ function SceneModal({
                     {asset.memo && <div>メモ: {asset.memo}</div>}
 
                     <div className="asset-item-actions">
+                      <button
+                        type="button"
+                        className="submit-button"
+                        onClick={() => handleGenerateTaskFromAsset(asset)}
+                      >
+                        タスク化
+                      </button>
                       <button
                         type="button"
                         className="submit-button"

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class TaskBase(BaseModel):
     video_id: int
     scene_id: Optional[int] = None
+    asset_id: Optional[int] = None
     title: str
     detail: Optional[str] = None
     task_type: str = "加工"
@@ -21,6 +22,7 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     video_id: Optional[int] = None
     scene_id: Optional[int] = None
+    asset_id: Optional[int] = None
     title: Optional[str] = None
     detail: Optional[str] = None
     task_type: Optional[str] = None

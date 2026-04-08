@@ -85,3 +85,15 @@ export async function deleteAsset(assetId) {
 
   return;
 }
+
+export async function generateTaskFromAsset(assetId) {
+  const response = await fetch(`${ASSET_API_BASE_URL}/${assetId}/generate-task`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("素材からタスクを生成できませんでした");
+  }
+
+  return response.json();
+}

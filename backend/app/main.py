@@ -32,6 +32,7 @@ def migrate_video_columns():
 
         conn.commit()
 
+
 def migrate_scene_columns():
     with engine.connect() as conn:
         statements = [
@@ -62,9 +63,30 @@ def migrate_scene_columns():
         conn.commit()
 
 
+def migrate_task_columns():
+    with engine.connect() as conn:
+        statements = [
+            "ALTER TABLE tasks ADD COLUMN asset_id INTEGER",
+        ]
+
+        for stmt in statements:
+            try:
+                conn.execute(text(stmt))
+                print(f"OK: {stmt}")
+            except Exception as e:
+                message = str(e)
+                if "duplicate column name" in message:
+                    print(f"SKIP: {stmt}")
+                else:
+                    print(f"ERROR: {stmt} -> {e}")
+
+        conn.commit()
+
+
 Base.metadata.create_all(bind=engine)
 migrate_video_columns()
 migrate_scene_columns()
+migrate_task_columns()
 
 app = FastAPI()
 

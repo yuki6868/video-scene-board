@@ -10,6 +10,7 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     video_id = Column(Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False, index=True)
     scene_id = Column(Integer, ForeignKey("scenes.id", ondelete="SET NULL"), nullable=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     detail = Column(Text, nullable=True)

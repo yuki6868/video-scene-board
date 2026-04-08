@@ -9,12 +9,15 @@ import uuid
 from app.dependencies.db import get_db
 from app.models.asset import Asset
 from app.models.scene import Scene
+from app.models.task import Task
 from app.models.video import Video
 from app.schemas.asset import AssetCreate, AssetResponse, AssetUpdate
+from app.schemas.task import TaskResponse
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 BASE_UPLOAD_DIR = "uploads"
+
 
 def get_subdir(asset_type: str):
     if asset_type == "audio":
@@ -104,6 +107,45 @@ def create_asset(
     db.refresh(asset)
 
     return asset
+
+
+@router.post("/{asset_id}/generate-task", response_model=TaskResponse, status_code=201)
+def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    existing_task = db.query(Task).filter(Task.asset_id == asset.id).first()
+    if existing_task is not None:
+        return existing_task
+
+    detail_lines = [
+        f"素材種別: {asset.asset_type}",
+        f"素材状態: {asset.status}",
+    ]
+
+    if asset.path_or_url:
+        detail_lines.append(f"パス/URL: {asset.path_or_url}")
+
+    if asset.memo:
+        detail_lines.append(f"メモ: {asset.memo}")
+
+    task = Task(
+        video_id=asset.video_id,
+        scene_id=asset.scene_id,
+        asset_id=asset.id,
+        title=f"素材対応: {asset.title}",
+        detail="\n".join(detail_lines),
+        task_type="素材",
+        priority="中",
+        status="未着手",
+    )
+
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    return task
 
 
 @router.put("/{asset_id}", response_model=AssetResponse)
