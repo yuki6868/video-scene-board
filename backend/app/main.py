@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api.asset import router as asset_router
 from app.api.scene import router as scene_router
 from app.api.task import router as task_router
 from app.api.video import router as video_router
@@ -75,6 +76,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(asset_router)
 app.include_router(scene_router)
 app.include_router(video_router)
 app.include_router(task_router)
