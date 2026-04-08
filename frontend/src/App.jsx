@@ -734,8 +734,13 @@ function SceneModal({
                 {assets.map((asset) => (
                   <li key={asset.id} className="asset-item">
                     <div><strong>{asset.title}</strong></div>
-                    <div>種別: {getAssetTypeLabel(asset.asset_type)}</div>
-                    <div>状態: {getAssetStatusLabel(asset.status)}</div>
+                    <div className={`asset-type type-${asset.asset_type}`}>
+                      種別: {getAssetTypeLabel(asset.asset_type)}
+                    </div>
+                    console.log(asset.asset_type);
+                    <div className={`asset-status status-${asset.status}`}>
+                      状態: {getAssetStatusLabel(asset.status)}
+                    </div>
                     {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
                     {asset.memo && <div>メモ: {asset.memo}</div>}
 
