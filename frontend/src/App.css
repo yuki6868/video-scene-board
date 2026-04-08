@@ -839,3 +839,19 @@
 .task-draggable.is-dragging {
   z-index: 10;
 }
+
+.asset-section {
+  margin-top: 16px;
+}
+
+.asset-list {
+  list-style: none;
+  padding: 0;
+}
+
+.asset-item {
+  border: 1px solid #ddd;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #fff;
+}

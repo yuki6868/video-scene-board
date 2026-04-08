@@ -26,6 +26,8 @@ import {
   duplicateVideo,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
+import { fetchAssets } from "./api/assetApi";
+
 
 const initialSceneForm = {
   title: "",
@@ -336,6 +338,24 @@ function SceneModal({
   onSubmit,
   onClose,
 }) {
+  const [assets, setAssets] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen || !editingSceneId) {
+      setAssets([]);
+      return;
+    }
+
+    fetchAssets({ sceneId: editingSceneId })
+      .then((data) => {
+        setAssets(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        setAssets([]);
+      });
+  }, [isOpen, editingSceneId]);
+
   if (!isOpen) return null;
 
   return (
@@ -373,8 +393,11 @@ function SceneModal({
             rows={6}
           />
 
-          {/* セクション */}
-          <select name="section_type" placeholder="セクション" value={form.section_type || ""} onChange={onChange}>
+          <select
+            name="section_type"
+            value={form.section_type || ""}
+            onChange={onChange}
+          >
             <option value="">選択</option>
             <option value="導入">導入</option>
             <option value="展開">展開</option>
@@ -382,14 +405,16 @@ function SceneModal({
             <option value="オチ">オチ</option>
           </select>
 
-          {/* ステータス */}
-          <select name="status" placeholder="ステータス" value={form.status} onChange={onChange}>
+          <select
+            name="status"
+            value={form.status}
+            onChange={onChange}
+          >
             <option value="未着手">未着手</option>
             <option value="作業中">作業中</option>
             <option value="完了">完了</option>
           </select>
 
-          {/* 秒数 */}
           <input
             name="duration_seconds"
             type="number"
@@ -398,22 +423,83 @@ function SceneModal({
             onChange={onChange}
           />
 
-          {/* キャラ */}
-          <input name="character_name" placeholder="キャラ名" value={form.character_name || ""} onChange={onChange} />
-          <input name="character_expression" placeholder="表情" value={form.character_expression || ""} onChange={onChange} />
+          <input
+            name="character_name"
+            placeholder="キャラ名"
+            value={form.character_name || ""}
+            onChange={onChange}
+          />
+          <input
+            name="character_expression"
+            placeholder="表情"
+            value={form.character_expression || ""}
+            onChange={onChange}
+          />
 
-          {/* パス */}
-          <input name="audio_path" placeholder="音声パス" value={form.audio_path || ""} onChange={onChange} />
-          <input name="background_path" placeholder="背景パス" value={form.background_path || ""} onChange={onChange} />
-          <input name="se_path" placeholder="SEパス" value={form.se_path || ""} onChange={onChange} />
+          <input
+            name="audio_path"
+            placeholder="音声パス"
+            value={form.audio_path || ""}
+            onChange={onChange}
+          />
+          <input
+            name="background_path"
+            placeholder="背景パス"
+            value={form.background_path || ""}
+            onChange={onChange}
+          />
+          <input
+            name="se_path"
+            placeholder="SEパス"
+            value={form.se_path || ""}
+            onChange={onChange}
+          />
 
-          {/* テキスト系 */}
-          <textarea name="telop" placeholder="テロップ" value={form.telop || ""} onChange={onChange} />
-          <textarea name="direction" placeholder="演出指示" value={form.direction || ""} onChange={onChange} />
-          <textarea name="edit_note" placeholder="編集メモ" value={form.edit_note || ""} onChange={onChange} />
+          <textarea
+            name="telop"
+            placeholder="テロップ"
+            value={form.telop || ""}
+            onChange={onChange}
+          />
+          <textarea
+            name="direction"
+            placeholder="演出指示"
+            value={form.direction || ""}
+            onChange={onChange}
+          />
+          <textarea
+            name="edit_note"
+            placeholder="編集メモ"
+            value={form.edit_note || ""}
+            onChange={onChange}
+          />
+
+          <div className="asset-section">
+            <h3>素材一覧</h3>
+
+            {!editingSceneId ? (
+              <p>シーン追加後に素材を紐づけられます</p>
+            ) : assets.length === 0 ? (
+              <p>素材はまだありません</p>
+            ) : (
+              <ul className="asset-list">
+                {assets.map((asset) => (
+                  <li key={asset.id} className="asset-item">
+                    <div><strong>{asset.title}</strong></div>
+                    <div>種別: {asset.asset_type}</div>
+                    <div>状態: {asset.status}</div>
+                    {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
+                    {asset.memo && <div>メモ: {asset.memo}</div>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="form-actions">
-            <button type="submit" className="submit-button">{editingSceneId ? "更新" : "追加"}</button>
+            <button type="submit" className="submit-button">
+              {editingSceneId ? "更新" : "追加"}
+            </button>
             <button
               type="button"
               className="cancel-button"
