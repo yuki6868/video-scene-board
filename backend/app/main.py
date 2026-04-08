@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.api.asset import router as asset_router
 from app.api.scene import router as scene_router
@@ -82,11 +83,70 @@ def migrate_task_columns():
 
         conn.commit()
 
+def backfill_task_asset_links():
+    with Session(bind=engine) as db:
+        tasks = db.query(Task).filter(Task.asset_id.is_(None)).all()
+
+        linked_count = 0
+
+        for task in tasks:
+            if not task.title:
+                continue
+
+            asset_title = None
+            task_type = None
+
+            if task.title.startswith("素材対応: "):
+                asset_title = task.title.replace("素材対応: ", "", 1).strip()
+                task_type = "素材"
+            elif task.title.startswith("ナレーション作成: "):
+                asset_title = task.title.replace("ナレーション作成: ", "", 1).strip()
+                task_type = "音声"
+            elif task.title.startswith("背景配置: "):
+                asset_title = task.title.replace("背景配置: ", "", 1).strip()
+                task_type = "背景"
+            elif task.title.startswith("効果音追加: "):
+                asset_title = task.title.replace("効果音追加: ", "", 1).strip()
+                task_type = "SE"
+
+            if asset_title is None:
+                continue
+
+            query = db.query(Asset).filter(
+                Asset.video_id == task.video_id,
+                Asset.title == asset_title,
+            )
+
+            if task.scene_id is not None:
+                query = query.filter(Asset.scene_id == task.scene_id)
+
+            asset = query.first()
+
+            if asset is None and task.scene_id is not None:
+                asset = db.query(Asset).filter(
+                    Asset.video_id == task.video_id,
+                    Asset.title == asset_title,
+                ).first()
+
+            if asset is None:
+                continue
+
+            task.asset_id = asset.id
+
+            if task_type is not None:
+                task.task_type = task_type
+
+            linked_count += 1
+
+        db.commit()
+        print(f"BACKFILL TASK-ASSET LINKS: {linked_count} tasks linked")
+
 
 Base.metadata.create_all(bind=engine)
 migrate_video_columns()
 migrate_scene_columns()
 migrate_task_columns()
+backfill_task_asset_links()
 
 app = FastAPI()
 
