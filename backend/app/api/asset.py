@@ -130,13 +130,26 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
     if asset.memo:
         detail_lines.append(f"メモ: {asset.memo}")
 
+    if asset.asset_type == "audio":
+        task_title = f"ナレーション作成: {asset.title}"
+        task_type = "音声"
+    elif asset.asset_type == "background":
+        task_title = f"背景配置: {asset.title}"
+        task_type = "背景"
+    elif asset.asset_type == "se":
+        task_title = f"効果音追加: {asset.title}"
+        task_type = "SE"
+    else:
+        task_title = f"素材対応: {asset.title}"
+        task_type = "素材"
+
     task = Task(
         video_id=asset.video_id,
         scene_id=asset.scene_id,
         asset_id=asset.id,
-        title=f"素材対応: {asset.title}",
+        title=task_title,
         detail="\n".join(detail_lines),
-        task_type="素材",
+        task_type=task_type,
         priority="中",
         status="未着手",
     )
