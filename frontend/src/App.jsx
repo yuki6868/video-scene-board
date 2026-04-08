@@ -91,6 +91,40 @@ function getStatusLabel(status) {
   }
 }
 
+function getAssetStatusLabel(status) {
+  switch (status) {
+    case "idea":
+      return "未着手";
+    case "searching":
+      return "探し中";
+    case "creating":
+      return "作成中";
+    case "ready":
+      return "準備済み";
+    case "missing":
+      return "不足";
+    default:
+      return status;
+  }
+}
+
+function getAssetTypeLabel(type) {
+  switch (type) {
+    case "material":
+      return "素材";
+    case "audio":
+      return "音声";
+    case "background":
+      return "背景";
+    case "se":
+      return "効果音";
+    case "bgm":
+      return "BGM";
+    default:
+      return type;
+  }
+}
+
 function TaskDroppableColumn({ status, count, children }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `task-column-${status}`,
@@ -661,8 +695,8 @@ function SceneModal({
                 {assets.map((asset) => (
                   <li key={asset.id} className="asset-item">
                     <div><strong>{asset.title}</strong></div>
-                    <div>種別: {asset.asset_type}</div>
-                    <div>状態: {asset.status}</div>
+                    <div>種別: {getAssetTypeLabel(asset.asset_type)}</div>
+                    <div>状態: {getAssetStatusLabel(asset.status)}</div>
                     {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
                     {asset.memo && <div>メモ: {asset.memo}</div>}
 
