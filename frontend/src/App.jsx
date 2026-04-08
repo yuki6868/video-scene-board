@@ -26,7 +26,12 @@ import {
   duplicateVideo,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
-import { fetchAssets, createAsset } from "./api/assetApi";
+import { 
+  fetchAssets, 
+  createAsset,
+  updateAsset,
+  deleteAsset,
+} from "./api/assetApi";
 
 
 const initialSceneForm = {
@@ -348,24 +353,35 @@ function SceneModal({
 }) {
   const [assets, setAssets] = useState([]);
   const [assetForm, setAssetForm] = useState(initialAssetForm);
+  const [editingAssetId, setEditingAssetId] = useState(null);
 
-  useEffect(() => {
-    if (!isOpen || !editingSceneId) {
+  async function loadAssets() {
+    if (!editingSceneId) {
       setAssets([]);
       return;
     }
 
-    fetchAssets({ sceneId: editingSceneId })
-      .then((data) => {
-        setAssets(data);
-      })
-      .catch((err) => {
-        console.error(err);
-        setAssets([]);
-      });
+    try {
+      const data = await fetchAssets({ sceneId: editingSceneId });
+      setAssets(data);
+    } catch (err) {
+      console.error(err);
+      setAssets([]);
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen || !editingSceneId) {
+      setAssets([]);
+      setEditingAssetId(null);
+      setAssetForm(initialAssetForm);
+      return;
+    }
+
+    loadAssets();
   }, [isOpen, editingSceneId]);
 
-  async function handleAssetCreate() {
+  async function handleAssetSubmit() {
     if (!editingSceneId) {
       alert("先にシーンを保存してください");
       return;
@@ -377,7 +393,7 @@ function SceneModal({
     }
 
     try {
-      await createAsset({
+      const payload = {
         video_id: videoId,
         scene_id: editingSceneId,
         title: assetForm.title,
@@ -386,15 +402,55 @@ function SceneModal({
         location_type: assetForm.location_type,
         path_or_url: assetForm.path_or_url || null,
         memo: assetForm.memo || null,
-      });
+      };
 
-      const data = await fetchAssets({ sceneId: editingSceneId });
-      setAssets(data);
+      if (editingAssetId === null) {
+        await createAsset(payload);
+      } else {
+        await updateAsset(editingAssetId, payload);
+      }
 
+      await loadAssets();
       setAssetForm(initialAssetForm);
+      setEditingAssetId(null);
     } catch (err) {
       console.error(err);
-      alert("素材の作成に失敗しました");
+      alert(editingAssetId === null ? "素材の作成に失敗しました" : "素材の更新に失敗しました");
+    }
+  }
+
+  function handleAssetEditStart(asset) {
+    setEditingAssetId(asset.id);
+    setAssetForm({
+      title: asset.title || "",
+      asset_type: asset.asset_type || "material",
+      status: asset.status || "idea",
+      location_type: asset.location_type || "none",
+      path_or_url: asset.path_or_url || "",
+      memo: asset.memo || "",
+    });
+  }
+
+  function handleAssetEditCancel() {
+    setEditingAssetId(null);
+    setAssetForm(initialAssetForm);
+  }
+
+  async function handleAssetDelete(assetId) {
+    const ok = window.confirm("この素材を削除しますか？");
+    if (!ok) return;
+
+    try {
+      await deleteAsset(assetId);
+      await loadAssets();
+
+      if (editingAssetId === assetId) {
+        setEditingAssetId(null);
+        setAssetForm(initialAssetForm);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("素材の削除に失敗しました");
     }
   }
 
@@ -574,13 +630,25 @@ function SceneModal({
                   rows={3}
                 />
 
-                <button
-                  type="button"
-                  className="submit-button"
-                  onClick={handleAssetCreate}
-                >
-                  素材追加
-                </button>
+                <div className="asset-form-actions">
+                  <button
+                    type="button"
+                    className="submit-button"
+                    onClick={handleAssetSubmit}
+                  >
+                    {editingAssetId === null ? "素材追加" : "素材更新"}
+                  </button>
+
+                  {editingAssetId !== null && (
+                    <button
+                      type="button"
+                      className="cancel-button"
+                      onClick={handleAssetEditCancel}
+                    >
+                      編集キャンセル
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -597,6 +665,24 @@ function SceneModal({
                     <div>状態: {asset.status}</div>
                     {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
                     {asset.memo && <div>メモ: {asset.memo}</div>}
+
+                    <div className="asset-item-actions">
+                      <button
+                        type="button"
+                        className="submit-button"
+                        onClick={() => handleAssetEditStart(asset)}
+                      >
+                        編集
+                      </button>
+
+                      <button
+                        type="button"
+                        className="delete-button"
+                        onClick={() => handleAssetDelete(asset.id)}
+                      >
+                        削除
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

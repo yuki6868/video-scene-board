@@ -881,3 +881,14 @@
 .asset-create-form textarea {
   width: 100%;
 }
+
+.asset-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.asset-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
