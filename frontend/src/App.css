@@ -865,3 +865,15 @@
 .task-drag-handle:active {
   cursor: grabbing;
 }
+
+.asset-create-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.asset-create-form input,
+.asset-create-form select,
+.asset-create-form textarea {
+  width: 100%;
+}

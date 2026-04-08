@@ -26,7 +26,7 @@ import {
   duplicateVideo,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
-import { fetchAssets } from "./api/assetApi";
+import { fetchAssets, createAsset } from "./api/assetApi";
 
 
 const initialSceneForm = {
@@ -57,6 +57,15 @@ const initialVideoForm = {
   target: "",
   goal: "",
   status: "draft",
+};
+
+const initialAssetForm = {
+  title: "",
+  asset_type: "material",
+  status: "idea",
+  location_type: "none",
+  path_or_url: "",
+  memo: "",
 };
 
 function truncateText(text, maxLength = 80) {
@@ -339,12 +348,14 @@ function SortableItem({ scene, onOpenDetail, onDelete, onDuplicate, dragDisabled
 function SceneModal({
   isOpen,
   form,
+  videoId,
   editingSceneId,
   onChange,
   onSubmit,
   onClose,
 }) {
   const [assets, setAssets] = useState([]);
+  const [assetForm, setAssetForm] = useState(initialAssetForm);
 
   useEffect(() => {
     if (!isOpen || !editingSceneId) {
@@ -361,6 +372,39 @@ function SceneModal({
         setAssets([]);
       });
   }, [isOpen, editingSceneId]);
+
+  async function handleAssetCreate() {
+    if (!editingSceneId) {
+      alert("先にシーンを保存してください");
+      return;
+    }
+
+    if (!assetForm.title.trim()) {
+      alert("素材タイトルを入力してください");
+      return;
+    }
+
+    try {
+      await createAsset({
+        video_id: videoId,
+        scene_id: editingSceneId,
+        title: assetForm.title,
+        asset_type: assetForm.asset_type,
+        status: assetForm.status,
+        location_type: assetForm.location_type,
+        path_or_url: assetForm.path_or_url || null,
+        memo: assetForm.memo || null,
+      });
+
+      const data = await fetchAssets({ sceneId: editingSceneId });
+      setAssets(data);
+
+      setAssetForm(initialAssetForm);
+    } catch (err) {
+      console.error(err);
+      alert("素材の作成に失敗しました");
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -482,6 +526,71 @@ function SceneModal({
 
           <div className="asset-section">
             <h3>素材一覧</h3>
+
+            {editingSceneId && (
+              <div className="asset-create-form">
+                <input
+                  type="text"
+                  placeholder="素材タイトル"
+                  value={assetForm.title}
+                  onChange={(e) =>
+                    setAssetForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                />
+
+                <select
+                  value={assetForm.asset_type}
+                  onChange={(e) =>
+                    setAssetForm((prev) => ({ ...prev, asset_type: e.target.value }))
+                  }
+                >
+                  <option value="material">素材</option>
+                  <option value="audio">音声</option>
+                  <option value="background">背景</option>
+                  <option value="se">SE</option>
+                  <option value="bgm">BGM</option>
+                </select>
+
+                <select
+                  value={assetForm.status}
+                  onChange={(e) =>
+                    setAssetForm((prev) => ({ ...prev, status: e.target.value }))
+                  }
+                >
+                  <option value="idea">未着手</option>
+                  <option value="searching">探し中</option>
+                  <option value="creating">作成中</option>
+                  <option value="ready">準備済み</option>
+                  <option value="missing">不足</option>
+                </select>
+
+                <input
+                  type="text"
+                  placeholder="パスまたはURL"
+                  value={assetForm.path_or_url}
+                  onChange={(e) =>
+                    setAssetForm((prev) => ({ ...prev, path_or_url: e.target.value }))
+                  }
+                />
+
+                <textarea
+                  placeholder="メモ"
+                  value={assetForm.memo}
+                  onChange={(e) =>
+                    setAssetForm((prev) => ({ ...prev, memo: e.target.value }))
+                  }
+                  rows={3}
+                />
+
+                <button
+                  type="button"
+                  className="submit-button"
+                  onClick={handleAssetCreate}
+                >
+                  素材追加
+                </button>
+              </div>
+            )}
 
             {!editingSceneId ? (
               <p>シーン追加後に素材を紐づけられます</p>
@@ -1536,6 +1645,7 @@ function App() {
       <SceneModal
         isOpen={isSceneModalOpen}
         form={sceneForm}
+        videoId={selectedVideoId}
         editingSceneId={editingSceneId}
         onChange={handleSceneChange}
         onSubmit={handleSceneSubmit}
