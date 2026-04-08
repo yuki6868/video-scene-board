@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
+from app.models.asset import Asset
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 
@@ -56,11 +57,33 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = task_in.model_dump(exclude_unset=True)
+
     for key, value in update_data.items():
         setattr(task, key, value)
 
+    print("=== task update start ===")
+    print("task.id =", task.id)
+    print("task.status =", task.status)
+    print("task.asset_id =", task.asset_id)
+
+    if task.asset_id is not None:
+        asset = db.query(Asset).filter(Asset.id == task.asset_id).first()
+        print("asset found =", asset is not None)
+
+        if asset is not None:
+            print("before asset.status =", asset.status)
+
+            if task.status == "完了":
+                asset.status = "完了"
+            else:
+                asset.status = "未着手"
+
+            print("after asset.status =", asset.status)
+
     db.commit()
     db.refresh(task)
+
+    print("=== task update end ===")
     return task
 
 
