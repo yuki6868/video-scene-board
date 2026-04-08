@@ -532,8 +532,13 @@
 .task-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-card-header h4 {
+  margin: 0;
+  flex: 1;
 }
 
 .task-card-header h3 {
@@ -857,9 +862,8 @@
 }
 
 .task-drag-handle {
+  flex-shrink: 0;
   cursor: grab;
-  padding: 4px;
-  user-select: none;
 }
 
 .task-drag-handle:active {

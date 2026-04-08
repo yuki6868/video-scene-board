@@ -135,15 +135,7 @@ function DraggableTaskCard({ task, children }) {
         opacity: isDragging ? 0 : 1,
       }}
     >
-      <div
-        className="task-drag-handle"
-        {...attributes}
-        {...listeners}
-      >
-        ⠿
-      </div>
-
-      {children}
+      {children({ attributes, listeners, isDragging })}
     </div>
   );
 }
@@ -1396,150 +1388,195 @@ function App() {
                             if (isEditing) {
                               return (
                                 <DraggableTaskCard key={task.id} task={task}>
-                                  <article
-                                    className={`task-card ${getTaskPriorityCardClass(task.priority)}`}
-                                  >
-                                    <input
-                                      type="text"
-                                      value={editingTask.title}
-                                      onChange={(e) =>
-                                        setEditingTask({ ...editingTask, title: e.target.value })
-                                      }
-                                      placeholder="タイトル"
-                                    />
+                                  {({ attributes, listeners }) => (
+                                    <article className={`task-card ${getTaskPriorityCardClass(task.priority)}`}>
+                                      <div className="task-card-header">
+                                        <button
+                                          type="button"
+                                          className="drag-handle task-drag-handle"
+                                          {...attributes}
+                                          {...listeners}
+                                          title="ドラッグで移動"
+                                        >
+                                          ⠿
+                                        </button>
 
-                                    <textarea
-                                      value={editingTask.detail}
-                                      onChange={(e) =>
-                                        setEditingTask({ ...editingTask, detail: e.target.value })
-                                      }
-                                      placeholder="詳細"
-                                    />
+                                        <h4>編集中</h4>
+                                      </div>
 
-                                    <select
-                                      value={editingTask.scene_id || ""}
-                                      onChange={(e) =>
-                                        setEditingTask({
-                                          ...editingTask,
-                                          scene_id: e.target.value ? Number(e.target.value) : null,
-                                        })
-                                      }
-                                    >
-                                      <option value="">動画全体</option>
-                                      {scenes.map((scene) => (
-                                        <option key={scene.id} value={scene.id}>
-                                          Scene #{scene.position + 1} {scene.title}
-                                        </option>
-                                      ))}
-                                    </select>
+                                      <input
+                                        type="text"
+                                        value={editingTask.title}
+                                        onChange={(e) =>
+                                          setEditingTask({ ...editingTask, title: e.target.value })
+                                        }
+                                        placeholder="タイトル"
+                                      />
 
-                                    <select
-                                      value={editingTask.priority}
-                                      onChange={(e) =>
-                                        setEditingTask({ ...editingTask, priority: e.target.value })
-                                      }
-                                    >
-                                      <option value="高">高</option>
-                                      <option value="中">中</option>
-                                      <option value="低">低</option>
-                                    </select>
+                                      <textarea
+                                        value={editingTask.detail}
+                                        onChange={(e) =>
+                                          setEditingTask({ ...editingTask, detail: e.target.value })
+                                        }
+                                        placeholder="詳細"
+                                      />
 
-                                    <select
-                                      value={editingTask.task_type}
-                                      onChange={(e) =>
-                                        setEditingTask({ ...editingTask, task_type: e.target.value })
-                                      }
-                                    >
-                                      <option value="加工">加工</option>
-                                      <option value="音声">音声</option>
-                                      <option value="素材">素材</option>
-                                      <option value="確認">確認</option>
-                                    </select>
+                                      <select
+                                        value={editingTask.scene_id || ""}
+                                        onChange={(e) =>
+                                          setEditingTask({
+                                            ...editingTask,
+                                            scene_id: e.target.value ? Number(e.target.value) : null,
+                                          })
+                                        }
+                                      >
+                                        <option value="">動画全体</option>
+                                        {scenes.map((scene) => (
+                                          <option key={scene.id} value={scene.id}>
+                                            Scene #{scene.position + 1} {scene.title}
+                                          </option>
+                                        ))}
+                                      </select>
 
-                                    <div className="task-actions">
-                                      <button type="button" onClick={() => handleSaveEdit(task.id)}>
-                                        保存
-                                      </button>
-                                      <button type="button" onClick={handleCancelEdit}>
-                                        キャンセル
-                                      </button>
-                                    </div>
-                                  </article>
+                                      <select
+                                        value={editingTask.priority}
+                                        onChange={(e) =>
+                                          setEditingTask({
+                                            ...editingTask,
+                                            priority: e.target.value,
+                                          })
+                                        }
+                                      >
+                                        <option value="高">高</option>
+                                        <option value="中">中</option>
+                                        <option value="低">低</option>
+                                      </select>
+
+                                      <select
+                                        value={editingTask.task_type}
+                                        onChange={(e) =>
+                                          setEditingTask({
+                                            ...editingTask,
+                                            task_type: e.target.value,
+                                          })
+                                        }
+                                      >
+                                        <option value="加工">加工</option>
+                                        <option value="音声">音声</option>
+                                        <option value="素材">素材</option>
+                                        <option value="確認">確認</option>
+                                      </select>
+
+                                      <div className="task-actions">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveEdit(task.id)}
+                                        >
+                                          保存
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={handleCancelEdit}
+                                        >
+                                          キャンセル
+                                        </button>
+                                      </div>
+                                    </article>
+                                  )}
                                 </DraggableTaskCard>
                               );
                             }
 
                             return (
                               <DraggableTaskCard key={task.id} task={task}>
-                                <article
-                                  className={`task-card ${getTaskPriorityCardClass(task.priority)}`}
-                                >
-                                  <div className="task-card-header">
-                                    <h4>{task.title}</h4>
-                                    <div className="task-badge-group">
-                                      <span className={getPriorityClassName(task.priority)}>
-                                        優先度: {task.priority}
+                                {({ attributes, listeners }) => (
+                                  <article className={`task-card ${getTaskPriorityCardClass(task.priority)}`}>
+                                    <div className="task-card-header">
+                                      <button
+                                        type="button"
+                                        className="drag-handle task-drag-handle"
+                                        {...attributes}
+                                        {...listeners}
+                                        title="ドラッグで移動"
+                                      >
+                                        ⠿
+                                      </button>
+
+                                      <h4>{task.title}</h4>
+
+                                      <div className="task-badge-group">
+                                        <span className={getPriorityClassName(task.priority)}>
+                                          優先度: {task.priority}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="task-meta">
+                                      <span className="task-meta-item">
+                                        種別: {task.task_type || "未設定"}
+                                      </span>
+                                      <span className="task-meta-item">
+                                        対象:{" "}
+                                        {relatedScene
+                                          ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+                                          : "動画全体"}
                                       </span>
                                     </div>
-                                  </div>
 
-                                  <div className="task-meta">
-                                    <span className="task-meta-item">
-                                      種別: {task.task_type || "未設定"}
-                                    </span>
-                                    <span className="task-meta-item">
-                                      対象:{" "}
-                                      {relatedScene
-                                        ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
-                                        : "動画全体"}
-                                    </span>
-                                  </div>
+                                    <p className="task-detail">
+                                      {task.detail || "詳細は未設定です。"}
+                                    </p>
 
-                                  <p className="task-detail">
-                                    {task.detail || "詳細は未設定です。"}
-                                  </p>
-
-                                  <div className="task-actions">
-                                    <button type="button" onClick={() => handleStartEdit(task)}>
-                                      編集
-                                    </button>
-
-                                    {status !== "未着手" && (
+                                    <div className="task-actions">
                                       <button
                                         type="button"
-                                        onClick={() => handleUpdateTaskStatus(task, "未着手")}
+                                        onClick={() => handleStartEdit(task)}
                                       >
-                                        未着手へ
+                                        編集
                                       </button>
-                                    )}
 
-                                    {status !== "作業中" && (
+                                      {status !== "未着手" && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateTaskStatus(task, "未着手")}
+                                        >
+                                          未着手へ
+                                        </button>
+                                      )}
+
+                                      {status !== "作業中" && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateTaskStatus(task, "作業中")}
+                                        >
+                                          作業中へ
+                                        </button>
+                                      )}
+
+                                      {status !== "完了" && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateTaskStatus(task, "完了")}
+                                        >
+                                          完了へ
+                                        </button>
+                                      )}
+
                                       <button
                                         type="button"
-                                        onClick={() => handleUpdateTaskStatus(task, "作業中")}
+                                        className="delete-button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteTask(task.id);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
                                       >
-                                        作業中へ
+                                        削除
                                       </button>
-                                    )}
-
-                                    {status !== "完了" && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleUpdateTaskStatus(task, "完了")}
-                                      >
-                                        完了へ
-                                      </button>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      className="delete-button"
-                                      onClick={() => handleDeleteTask(task.id)}
-                                    >
-                                      削除
-                                    </button>
-                                  </div>
-                                </article>
+                                    </div>
+                                  </article>
+                                )}
                               </DraggableTaskCard>
                             );
                           })
