@@ -855,3 +855,13 @@
   margin-bottom: 8px;
   background: #fff;
 }
+
+.task-drag-handle {
+  cursor: grab;
+  padding: 4px;
+  user-select: none;
+}
+
+.task-drag-handle:active {
+  cursor: grabbing;
+}

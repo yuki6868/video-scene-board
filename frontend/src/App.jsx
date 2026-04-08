@@ -125,9 +125,15 @@ function DraggableTaskCard({ task, children }) {
         width: "100%",
         opacity: isDragging ? 0 : 1,
       }}
-      {...attributes}
-      {...listeners}
     >
+      <div
+        className="task-drag-handle"
+        {...attributes}
+        {...listeners}
+      >
+        ⠿
+      </div>
+
       {children}
     </div>
   );
