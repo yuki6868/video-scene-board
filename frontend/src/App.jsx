@@ -71,6 +71,7 @@ const initialAssetForm = {
   location_type: "none",
   path_or_url: "",
   memo: "",
+  file: null,
 };
 
 function truncateText(text, maxLength = 80) {
@@ -426,27 +427,32 @@ function SceneModal({
       return;
     }
 
-    try {
-      const payload = {
-        video_id: videoId,
-        scene_id: editingSceneId,
-        title: assetForm.title,
-        asset_type: assetForm.asset_type,
-        status: assetForm.status,
-        location_type: assetForm.location_type,
-        path_or_url: assetForm.path_or_url || null,
-        memo: assetForm.memo || null,
-      };
+    const formData = new FormData();
 
-      if (editingAssetId === null) {
-        await createAsset(payload);
-      } else {
-        await updateAsset(editingAssetId, payload);
+    formData.append("video_id", videoId);
+    formData.append("scene_id", editingSceneId);
+    formData.append("title", assetForm.title);
+    formData.append("asset_type", assetForm.asset_type);
+    formData.append("status", assetForm.status);
+    formData.append("location_type", assetForm.location_type);
+    formData.append("memo", assetForm.memo || "");
+
+    if (assetForm.file) {
+      formData.append("file", assetForm.file);
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/assets/", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("失敗");
       }
 
       await loadAssets();
       setAssetForm(initialAssetForm);
-      setEditingAssetId(null);
     } catch (err) {
       console.error(err);
       alert(editingAssetId === null ? "素材の作成に失敗しました" : "素材の更新に失敗しました");
@@ -646,14 +652,47 @@ function SceneModal({
                   <option value="missing">不足</option>
                 </select>
 
-                <input
-                  type="text"
-                  placeholder="パスまたはURL"
-                  value={assetForm.path_or_url}
+                {assetForm.location_type === "local" && (
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      setAssetForm((prev) => ({
+                        ...prev,
+                        file,
+                        path_or_url: file?.name || "",
+                      }));
+                    }}
+                  />
+                )}
+
+                {assetForm.location_type === "url" && (
+                  <input
+                    type="text"
+                    placeholder="URL"
+                    value={assetForm.path_or_url}
+                    onChange={(e) =>
+                      setAssetForm((prev) => ({
+                        ...prev,
+                        path_or_url: e.target.value,
+                      }))
+                    }
+                  />
+                )}
+
+                <select
+                  value={assetForm.location_type}
                   onChange={(e) =>
-                    setAssetForm((prev) => ({ ...prev, path_or_url: e.target.value }))
+                    setAssetForm((prev) => ({
+                      ...prev,
+                      location_type: e.target.value,
+                    }))
                   }
-                />
+                >
+                  <option value="none">未作成</option>
+                  <option value="local">ファイル</option>
+                  <option value="url">URL</option>
+                </select>
 
                 <textarea
                   placeholder="メモ"
