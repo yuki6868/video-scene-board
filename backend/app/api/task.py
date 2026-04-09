@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.dependencies.db import get_db
 from app.models.asset import Asset
 from app.models.task import Task
+from app.models.scene import Scene
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -61,29 +62,30 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
     for key, value in update_data.items():
         setattr(task, key, value)
 
-    print("=== task update start ===")
-    print("task.id =", task.id)
-    print("task.status =", task.status)
-    print("task.asset_id =", task.asset_id)
-
     if task.asset_id is not None:
         asset = db.query(Asset).filter(Asset.id == task.asset_id).first()
-        print("asset found =", asset is not None)
 
         if asset is not None:
-            print("before asset.status =", asset.status)
-
             if task.status == "完了":
-                asset.status = "完了"
+                asset.status = "ready"
+            elif task.status == "作業中":
+                asset.status = "creating"
             else:
-                asset.status = "未着手"
+                asset.status = "idea"
 
-            print("after asset.status =", asset.status)
+            # task.scene_id を優先して同期先を決める
+            target_scene_id = task.scene_id if task.scene_id is not None else asset.scene_id
+
+            if asset.asset_type == "background" and target_scene_id is not None:
+                scene = db.query(Scene).filter(Scene.id == target_scene_id).first()
+                if scene is not None:
+                    if task.status == "完了" and asset.path_or_url:
+                        scene.background_path = asset.path_or_url
+                    elif scene.background_path == asset.path_or_url:
+                        scene.background_path = None
 
     db.commit()
     db.refresh(task)
-
-    print("=== task update end ===")
     return task
 
 

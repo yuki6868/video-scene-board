@@ -1178,3 +1178,29 @@
     grid-template-columns: 1fr;
   }
 }
+
+.scene-preview-block {
+  margin-top: 12px;
+}
+
+.scene-image-preview {
+  margin-top: 10px;
+}
+
+.scene-image-preview-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+.scene-preview-image {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 6px;
+}

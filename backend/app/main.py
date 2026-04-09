@@ -191,7 +191,7 @@ app.include_router(task_router)
 app.include_router(voice_asset_router)
 
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
-
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 def read_root():

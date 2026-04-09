@@ -1,5 +1,11 @@
 import SceneAssetSection from "../scene/SceneAssetSection";
 
+function buildFileUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `http://127.0.0.1:8000/${path}`;
+}
+
 function getTaskStatusClassName(status) {
   switch (status) {
     case "未着手":
@@ -22,6 +28,7 @@ export default function SceneModal({
   onSubmit,
   onClose,
   loadTasks,
+  onAssetUpdated,
   tasks,
   handleUpdateTaskStatus,
   voiceForm,
@@ -50,7 +57,7 @@ export default function SceneModal({
           </button>
         </div>
 
-        <form className="scene-form modal-form" onSubmit={onSubmit}>
+        <div className="scene-form modal-form">
           <input
             name="title"
             placeholder="タイトル"
@@ -190,11 +197,30 @@ export default function SceneModal({
                         {asset.audio_path && (
                             <audio
                                 controls
-                                src={`http://127.0.0.1:8000/${asset.audio_path}`}
+                                src={buildFileUrl(asset.audio_path)}
                                 style={{ width: "100%", marginTop: "8px" }}
                             >
                                 お使いのブラウザはaudioタグをサポートしていません。
                             </audio>
+                        )}
+
+                        {asset.subtitle_png_path && (
+                            <div className="scene-image-preview">
+                              <p className="scene-image-preview-label">字幕画像プレビュー</p>
+                              <img
+                                src={buildFileUrl(asset.subtitle_png_path)}
+                                alt="字幕画像プレビュー"
+                                className="scene-preview-image"
+                              />
+                            </div>
+                        )}
+                        {form.audio_path && (
+                            <div className="scene-audio-preview">
+                            <p className="scene-image-preview-label">音声プレビュー</p>
+                            <audio controls src={buildFileUrl(form.audio_path)} style={{ width: "100%" }}>
+                                お使いのブラウザはaudioタグをサポートしていません。
+                            </audio>
+                            </div>
                         )}
 
                         <div className="voice-history-actions">
@@ -272,6 +298,17 @@ export default function SceneModal({
             value={form.background_path || ""}
             onChange={onChange}
           />
+          {form.background_path && (
+            <div className="scene-image-preview">
+              <p className="scene-image-preview-label">背景プレビュー</p>
+              <img
+                src={buildFileUrl(form.background_path)}
+                alt="背景プレビュー"
+                className="scene-preview-image"
+              />
+            </div>
+          )}
+
           <input
             name="se_path"
             placeholder="SEパス"
@@ -302,11 +339,12 @@ export default function SceneModal({
             editingSceneId={editingSceneId}
             videoId={videoId}
             loadTasks={loadTasks}
+            onAssetUpdated={onAssetUpdated}
           />
 
           <div className="form-actions">
-            <button type="submit" className="submit-button">
-              {editingSceneId ? "更新" : "追加"}
+            <button type="button" className="submit-button" onClick={onSubmit}>
+                {editingSceneId ? "更新" : "追加"}
             </button>
             <button
               type="button"
@@ -316,7 +354,7 @@ export default function SceneModal({
               閉じる
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

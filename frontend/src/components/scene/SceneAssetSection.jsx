@@ -7,6 +7,22 @@ import {
 } from "../../api/assetApi";
 import AssetEditModal from "../modals/AssetEditModal";
 
+function buildFileUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `http://127.0.0.1:8000/${path}`;
+}
+
+function buildAssetFileUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `http://127.0.0.1:8000/uploads/${path}`;
+}
+
+function isImagePath(path) {
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(path || "");
+}
+
 const initialAssetForm = {
   title: "",
   asset_type: "material",
@@ -55,6 +71,7 @@ export default function SceneAssetSection({
   editingSceneId,
   videoId,
   loadTasks,
+  onAssetUpdated,
 }) {
   const [assets, setAssets] = useState([]);
   const [assetForm, setAssetForm] = useState(initialAssetForm);
@@ -174,15 +191,21 @@ export default function SceneAssetSection({
     if (!editingAsset) return;
 
     try {
-      await updateAsset(editingAsset.id, updated);
-      setIsAssetModalOpen(false);
-      setEditingAsset(null);
-      await loadAssets();
+        await updateAsset(editingAsset.id, updated);
+        setIsAssetModalOpen(false);
+        setEditingAsset(null);
+
+        await loadAssets();
+        await loadTasks();
+
+        if (onAssetUpdated) {
+        await onAssetUpdated();
+        }
     } catch (err) {
-      console.error(err);
-      alert("素材の更新に失敗しました");
+        console.error(err);
+        alert("素材の更新に失敗しました");
     }
-  }
+    }
 
   return (
     <div className="asset-section">
@@ -316,6 +339,17 @@ export default function SceneAssetSection({
                     状態: {getAssetStatusLabel(asset.status)}
                   </div>
                   {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
+
+                  {asset.path_or_url && isImagePath(asset.path_or_url) && (
+                    <div className="scene-image-preview">
+                      <p className="scene-image-preview-label">素材プレビュー</p>
+                      <img
+                        src={buildFileUrl(asset.path_or_url)}
+                        alt={asset.title}
+                        className="scene-preview-image"
+                      />
+                    </div>
+                  )}
                   {asset.memo && <div>メモ: {asset.memo}</div>}
 
                   <div className="asset-item-actions">

@@ -29,7 +29,7 @@ export default function AssetEditModal({
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     await onSave(form);
   }
 
@@ -41,10 +41,10 @@ export default function AssetEditModal({
       >
         <div className="modal-header">
           <h2>素材編集</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <form className="asset-edit-form" onSubmit={handleSubmit}>
+        <div className="asset-edit-form">
           <div className="asset-edit-grid">
             <div className="form-field">
               <label htmlFor="asset-title">タイトル</label>
@@ -137,11 +137,11 @@ export default function AssetEditModal({
             >
               キャンセル
             </button>
-            <button type="submit" className="submit-button">
-              保存
+            <button type="button" className="submit-button" onClick={handleSubmit}>
+                保存
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -89,7 +89,7 @@ def create_asset(
         file_location = os.path.join(save_dir, filename)
         with open(file_location, "wb") as f:
             f.write(file.file.read())
-        path = f"{subdir}/{filename}"
+        path = f"uploads/{subdir}/{filename}"
 
     asset = Asset(
         video_id=video_id,
@@ -167,6 +167,11 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset not found")
 
+    old_scene_id = asset.scene_id
+    old_path = asset.path_or_url
+    old_asset_type = asset.asset_type
+    old_status = asset.status
+
     update_data = asset_in.model_dump(exclude_unset=True)
 
     next_video_id = update_data.get("video_id", asset.video_id)
@@ -185,6 +190,38 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
 
     for key, value in update_data.items():
         setattr(asset, key, value)
+
+    # 旧シーン側の背景解除
+    if old_asset_type == "background" and old_scene_id is not None:
+        old_scene = db.query(Scene).filter(Scene.id == old_scene_id).first()
+        if old_scene is not None and old_scene.background_path == old_path:
+            # 背景素材が移動された / 未準備になった / パス変更された場合は解除
+            if (
+                asset.scene_id != old_scene_id
+                or asset.asset_type != "background"
+                or asset.status != "ready"
+                or asset.path_or_url != old_path
+            ):
+                old_scene.background_path = None
+
+    # 新シーン側へ背景反映
+    if asset.asset_type == "background" and asset.scene_id is not None:
+        scene = db.query(Scene).filter(Scene.id == asset.scene_id).first()
+        if scene is not None:
+            if asset.status == "ready" and asset.path_or_url:
+                scene.background_path = asset.path_or_url
+            elif scene.background_path == asset.path_or_url:
+                scene.background_path = None
+
+    # 素材に紐づくタスクも同期する
+    linked_task = db.query(Task).filter(Task.asset_id == asset.id).first()
+    if linked_task is not None:
+        if asset.status == "ready":
+            linked_task.status = "完了"
+        elif asset.status in ["creating", "searching"]:
+            linked_task.status = "作業中"
+        else:
+            linked_task.status = "未着手"
 
     db.commit()
     db.refresh(asset)

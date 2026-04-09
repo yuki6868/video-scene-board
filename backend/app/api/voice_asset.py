@@ -102,7 +102,6 @@ def select_voice_asset(voice_asset_id: int, db: Session = Depends(get_db)):
 
     if scene:
         scene.audio_path = target.audio_path
-        scene.background_path = target.subtitle_png_path
 
     db.commit()
 

@@ -92,6 +92,12 @@ function truncateText(text, maxLength = 80) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
+function buildFileUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `http://127.0.0.1:8000/${path}`;
+}
+
 function getStatusLabel(status) {
   switch (status) {
     case "draft":
@@ -328,10 +334,21 @@ function SortableItem({ scene, progress, onOpenDetail, onDelete, onDuplicate, dr
           <p>{truncateText(scene.materials, 60)}</p>
         </div>
 
+        {scene.background_path && (
+          <div className="scene-preview-block">
+            <strong>背景プレビュー</strong>
+            <img
+              src={buildFileUrl(scene.background_path)}
+              alt={`${scene.title || "シーン"}の背景`}
+              className="scene-preview-image"
+            />
+          </div>
+        )}
+
         {scene.audio_path && (
           <audio
             controls
-            src={`http://127.0.0.1:8000/${scene.audio_path}`}
+            src={buildFileUrl(scene.audio_path)}
             style={{ width: "100%", marginTop: "8px" }}
           />
         )}
@@ -525,15 +542,11 @@ function App() {
 
   async function handleTaskDragEnd(event) {
     const { active, over } = event;
-    console.log("drag end", { active, over });
 
     if (!active || !over) return;
 
     const activeTask = active.data.current?.task;
     const overStatus = over.data.current?.status;
-
-    console.log("activeTask", activeTask);
-    console.log("overStatus", overStatus);
 
     if (!activeTask || !overStatus) return;
     if (activeTask.status === overStatus) return;
@@ -541,6 +554,35 @@ function App() {
     try {
       await updateTask(activeTask.id, { status: overStatus });
       await loadTasksByVideo(selectedVideoId);
+      await loadScenesByVideo(selectedVideoId);
+
+      if (selectedScene) {
+        const refreshedScenes = await fetchScenes(selectedVideoId);
+        const matchedScene = refreshedScenes.find(
+          (scene) => scene.id === selectedScene.id
+        );
+
+        if (matchedScene) {
+          setSelectedScene(matchedScene);
+          setSceneForm({
+            title: matchedScene.title || "",
+            script: matchedScene.script || "",
+            materials: matchedScene.materials || "",
+            position: matchedScene.position ?? 0,
+            section_type: matchedScene.section_type || "",
+            status: matchedScene.status || "未着手",
+            duration_seconds: matchedScene.duration_seconds ?? "",
+            audio_path: matchedScene.audio_path || "",
+            character_name: matchedScene.character_name || "",
+            character_expression: matchedScene.character_expression || "",
+            background_path: matchedScene.background_path || "",
+            se_path: matchedScene.se_path || "",
+            telop: matchedScene.telop || "",
+            direction: matchedScene.direction || "",
+            edit_note: matchedScene.edit_note || "",
+          });
+        }
+      }
     } catch (error) {
       console.error(error);
       alert("ステータス更新に失敗しました");
@@ -611,6 +653,30 @@ function App() {
       setVoiceError(error.message);
     } finally {
       setVoiceLoading(false);
+    }
+  }
+
+  async function handleAssetUpdated() {
+    if (!selectedVideoId) return;
+
+    const refreshedScenes = await fetchScenes(selectedVideoId);
+    setScenes(refreshedScenes);
+
+    if (selectedScene) {
+      const matchedScene = refreshedScenes.find(
+        (scene) => scene.id === selectedScene.id
+      );
+
+      if (matchedScene) {
+        setSelectedScene(matchedScene);
+        setSceneForm({
+          ...matchedScene,
+          title: matchedScene.title || "",
+          script: matchedScene.script || "",
+          materials: matchedScene.materials || "",
+          duration_seconds: matchedScene.duration_seconds ?? "",
+        });
+      }
     }
   }
 
@@ -881,6 +947,33 @@ function App() {
       });
 
       await loadTasksByVideo(selectedVideo.id);
+      await loadScenesByVideo(selectedVideo.id);
+
+      if (selectedScene) {
+        const refreshedScenes = await fetchScenes(selectedVideo.id);
+        const matchedScene = refreshedScenes.find((scene) => scene.id === selectedScene.id);
+
+        if (matchedScene) {
+          setSelectedScene(matchedScene);
+          setSceneForm({
+            title: matchedScene.title || "",
+            script: matchedScene.script || "",
+            materials: matchedScene.materials || "",
+            position: matchedScene.position ?? 0,
+            section_type: matchedScene.section_type || "",
+            status: matchedScene.status || "未着手",
+            duration_seconds: matchedScene.duration_seconds ?? "",
+            audio_path: matchedScene.audio_path || "",
+            character_name: matchedScene.character_name || "",
+            character_expression: matchedScene.character_expression || "",
+            background_path: matchedScene.background_path || "",
+            se_path: matchedScene.se_path || "",
+            telop: matchedScene.telop || "",
+            direction: matchedScene.direction || "",
+            edit_note: matchedScene.edit_note || "",
+          });
+        }
+      }
     } catch (e) {
       console.error(e);
       alert("更新失敗");
@@ -1537,7 +1630,8 @@ function App() {
         onChange={handleSceneChange}
         onSubmit={handleSceneSubmit}
         onClose={closeSceneModal}
-        loadTasks={loadTasksByVideo}
+        loadTasks={() => loadTasksByVideo(selectedVideoId)}
+        onAssetUpdated={handleAssetUpdated}
         tasks={tasks}
         handleUpdateTaskStatus={handleUpdateTaskStatus}
         voiceForm={voiceForm}
