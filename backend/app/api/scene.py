@@ -5,6 +5,8 @@ from app.dependencies.db import get_db
 from app.models.scene import Scene
 from app.services.task_generation import get_scene_initial_tasks
 from app.models.task import Task
+from app.services.asset_generation import get_scene_initial_assets
+from app.models.asset import Asset
 from app.models.video import Video
 from app.schemas.scene import (
     SceneCreate,
@@ -71,6 +73,28 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
                 status="未着手"
             )
             db.add(new_task)
+
+    initial_assets = get_scene_initial_assets(
+        scene_id=new_scene.id,
+        video_id=new_scene.video_id,
+        scene_position=new_scene.position
+    )
+
+    for asset_data in initial_assets:
+        exists = db.query(Asset).filter(
+            Asset.scene_id == new_scene.id,
+            Asset.asset_type == asset_data["asset_type"]
+        ).first()
+
+        if not exists:
+            new_asset = Asset(
+                scene_id=asset_data["scene_id"],
+                video_id=asset_data["video_id"],
+                asset_type=asset_data["asset_type"],
+                title=asset_data["name"],
+                status=asset_data["status"],
+            )
+            db.add(new_asset)
 
     db.commit()
 
