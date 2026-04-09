@@ -33,6 +33,11 @@ class Scene(Base):
 
     video = relationship("Video", back_populates="scenes")
     assets = relationship("Asset", back_populates="scene")
+    voice_assets = relationship(
+        "VoiceAsset",
+        back_populates="scene",
+        cascade="all, delete-orphan"
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

@@ -12,6 +12,7 @@ from app.models.asset import Asset
 from app.models.scene import Scene
 from app.models.task import Task
 from app.models.video import Video
+from app.models.voice_asset import VoiceAsset
 
 
 def migrate_video_columns():
@@ -83,6 +84,29 @@ def migrate_task_columns():
 
         conn.commit()
 
+def migrate_voice_assets_table(engine):
+    with engine.connect() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS voice_assets (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                style_id INTEGER NOT NULL,
+                character_name TEXT NOT NULL,
+                style_name TEXT NOT NULL,
+                speed REAL NOT NULL DEFAULT 1.0,
+                pitch REAL NOT NULL DEFAULT 0.0,
+                intonation REAL NOT NULL DEFAULT 1.0,
+                volume REAL NOT NULL DEFAULT 1.0,
+                audio_path TEXT,
+                subtitle_png_path TEXT,
+                is_selected BOOLEAN NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(scene_id) REFERENCES scenes(id) ON DELETE CASCADE
+            )
+        """))
+        conn.commit()
+
 def backfill_task_asset_links():
     with Session(bind=engine) as db:
         tasks = db.query(Task).filter(Task.asset_id.is_(None)).all()
@@ -141,7 +165,7 @@ def backfill_task_asset_links():
         db.commit()
         print(f"BACKFILL TASK-ASSET LINKS: {linked_count} tasks linked")
 
-
+migrate_voice_assets_table(engine)
 Base.metadata.create_all(bind=engine)
 migrate_video_columns()
 migrate_scene_columns()
