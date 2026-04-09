@@ -7,6 +7,7 @@ from app.api.asset import router as asset_router
 from app.api.scene import router as scene_router
 from app.api.task import router as task_router
 from app.api.video import router as video_router
+from app.api.voice_asset import router as voice_asset_router
 from app.db.database import Base, engine
 from app.models.asset import Asset
 from app.models.scene import Scene
@@ -186,6 +187,7 @@ app.include_router(asset_router)
 app.include_router(scene_router)
 app.include_router(video_router)
 app.include_router(task_router)
+app.include_router(voice_asset_router)
 
 
 @app.get("/")
