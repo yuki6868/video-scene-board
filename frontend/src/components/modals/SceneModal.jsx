@@ -187,6 +187,16 @@ export default function SceneModal({
 
                         <p className="voice-history-text">{asset.text}</p>
 
+                        {asset.audio_path && (
+                            <audio
+                                controls
+                                src={`http://127.0.0.1:8000/${asset.audio_path}`}
+                                style={{ width: "100%", marginTop: "8px" }}
+                            >
+                                お使いのブラウザはaudioタグをサポートしていません。
+                            </audio>
+                        )}
+
                         <div className="voice-history-actions">
                         <button
                             type="button"

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -188,6 +189,8 @@ app.include_router(scene_router)
 app.include_router(video_router)
 app.include_router(task_router)
 app.include_router(voice_asset_router)
+
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 
 @app.get("/")
