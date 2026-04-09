@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
+from app.services.task_sync import recalculate_parent_task_status
 from app.models.asset import Asset
 from app.models.task import Task
 from app.models.scene import Scene
@@ -85,6 +86,12 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
                         scene.background_path = None
 
     db.commit()
+    db.refresh(task)
+
+    if task.parent_task_id is not None:
+        recalculate_parent_task_status(db, task.parent_task_id)
+        db.commit()
+
     db.refresh(task)
     return task
 

@@ -1018,6 +1018,9 @@ function App() {
           position: scene.position,
         }))
       );
+
+      await loadScenesByVideo(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン並び替えに失敗しました");
@@ -1038,6 +1041,7 @@ function App() {
       }
 
       await loadScenesByVideo(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン削除に失敗しました");

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.services.task_title_sync import sync_task_titles_for_scene
 
 from app.dependencies.db import get_db
 from app.models.scene import Scene
@@ -193,6 +194,12 @@ def reorder_scenes(video_id: int, items: list[SceneReorderItem], db: Session = D
         .order_by(Scene.position.asc(), Scene.id.asc())
         .all()
     )
+
+    for scene in updated_scenes:
+        sync_task_titles_for_scene(db, scene)
+
+    db.commit()
+
     return updated_scenes
 
 
@@ -274,6 +281,10 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     video_id = scene.video_id
     deleted_position = scene.position
 
+    db.query(Task).filter(Task.scene_id == scene_id).delete()
+    db.query(Asset).filter(Asset.scene_id == scene_id).delete()
+
+    # シーン削除
     db.delete(scene)
     db.commit()
 
@@ -284,8 +295,10 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    db.commit()
+
     for remaining_scene in remaining_scenes:
-        remaining_scene.position -= 1
+        sync_task_titles_for_scene(db, remaining_scene)
 
     db.commit()
 
