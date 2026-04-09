@@ -53,31 +53,71 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
 
     initial_tasks = get_scene_initial_tasks(
         scene_id=new_scene.id,
-        scene_order=new_scene.position
+        scene_order=new_scene.position + 1
     )
 
+    created_parent_tasks = {}
+
+    # 1. 親タスクを先に作る
     for task_data in initial_tasks:
-        # 重複チェック（重要）
+        if task_data["parent_key"] is not None:
+            continue
+
         exists = db.query(Task).filter(
             Task.scene_id == new_scene.id,
-            Task.task_type == task_data["task_type"]
+            Task.task_type == task_data["task_type"],
+            Task.title == task_data["title"]
         ).first()
 
-        if not exists:
-            new_task = Task(
-                title=task_data["title"],
-                task_type=task_data["task_type"],
-                scene_id=task_data["scene_id"],
-                video_id=new_scene.video_id,
-                priority=task_data["priority"],
-                status="未着手"
-            )
-            db.add(new_task)
+        if exists:
+            created_parent_tasks[task_data["key"]] = exists
+            continue
+
+        new_task = Task(
+            title=task_data["title"],
+            task_type=task_data["task_type"],
+            scene_id=task_data["scene_id"],
+            video_id=new_scene.video_id,
+            priority=task_data["priority"],
+            status=task_data["status"],
+            parent_task_id=None,
+        )
+        db.add(new_task)
+        db.flush()  # id をすぐ取得するため
+        created_parent_tasks[task_data["key"]] = new_task
+
+    # 2. 子タスクを作る
+    for task_data in initial_tasks:
+        if task_data["parent_key"] is None:
+            continue
+
+        parent_task = created_parent_tasks.get(task_data["parent_key"])
+        if parent_task is None:
+            continue
+
+        exists = db.query(Task).filter(
+            Task.scene_id == new_scene.id,
+            Task.title == task_data["title"]
+        ).first()
+
+        if exists:
+            continue
+
+        new_task = Task(
+            title=task_data["title"],
+            task_type=task_data["task_type"],
+            scene_id=task_data["scene_id"],
+            video_id=new_scene.video_id,
+            priority=task_data["priority"],
+            status=task_data["status"],
+            parent_task_id=parent_task.id,
+        )
+        db.add(new_task)
 
     initial_assets = get_scene_initial_assets(
         scene_id=new_scene.id,
         video_id=new_scene.video_id,
-        scene_position=new_scene.position
+        scene_position=new_scene.position + 1
     )
 
     for asset_data in initial_assets:
