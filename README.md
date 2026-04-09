@@ -51,3 +51,120 @@
 - fix: バグ修正
 - style: UI/CSS修正
 - refactor: 構造改善
+
+## VOICEVOX音声生成セットアップメモ
+
+### ■ 概要
+
+本アプリでは VOICEVOX を用いて音声生成を行う。
+そのため、以下の3種類が必要になる。
+
+* Pythonパッケージ（voicevox_core）
+* 実行用ライブラリ（onnxruntime）
+* 音声モデル・辞書（.vvm / open_jtalk）
+
+---
+
+### ■ 注意（重要）
+
+`voicevox-core` は PyPI から通常の `pip install` ではインストールできない。
+GitHub Releases の **wheelファイルを直接インストールする必要がある。**
+
+---
+
+### ■ requirements.txt
+
+```txt
+fastapi
+uvicorn[standard]
+pillow
+```
+
+※ voicevox-core はここには書かない
+
+---
+
+### ■ インストール手順（Mac / arm64 / Python3.10）
+
+```bash
+python -m pip install "https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.4/voicevox_core-0.16.4-cp310-abi3-macosx_11_0_arm64.whl"
+```
+
+---
+
+### ■ 動作確認
+
+```bash
+python -c "import voicevox_core; print('voicevox_core import ok')"
+python -c "from voicevox_core.blocking import Synthesizer; print('blocking import ok')"
+```
+
+---
+
+### ■ 必要なファイル配置
+
+以下の構成になるように配置する。
+
+```
+backend/
+├── app/
+│   └── services/
+│       └── voice_service.py
+│
+├── voicevox_core/
+│   ├── onnxruntime/
+│   │   └── lib/
+│   │       └── libvoicevox_onnxruntime.1.17.3.dylib
+│   │
+│   ├── dict/
+│   │   └── open_jtalk_dic_utf_8-1.11/
+│   │
+│   └── models/
+│       └── vvms/
+│           ├── 0.vvm
+│           ├── 4.vvm
+│           ├── 5.vvm
+│           └── 10.vvm
+```
+
+---
+
+### ■ ファイルの入手方法
+
+VOICEVOX公式アプリをダウンロードし、中身からコピーする。
+
+```
+VOICEVOX.app/Contents/Resources/
+```
+
+中から以下を取得：
+
+* voicevox_core/
+* open_jtalk_dic_utf_8-1.11/
+* vvms/
+
+---
+
+### ■ 動作テスト
+
+```python
+from pathlib import Path
+from app.services.voice_service import generate_voice_file
+
+generate_voice_file(
+    text="テストなのだ",
+    style_id=3,
+    output_dir=Path("outputs")
+)
+```
+
+---
+
+### ■ 補足
+
+* style_id → キャラと話し方を決定
+* vvm → 音声モデル本体
+
+両方が一致しないと音声生成できない
+
+---

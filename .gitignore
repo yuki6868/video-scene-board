@@ -209,3 +209,8 @@ __marimo__/
 # data
 *.db
 uploads/
+outputs/
+voicevox_core/
+
+# test code
+test.py
