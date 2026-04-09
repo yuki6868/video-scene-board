@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.models.scene import Scene
+from app.services.task_generation import get_scene_initial_tasks
+from app.models.task import Task
 from app.models.video import Video
 from app.schemas.scene import (
     SceneCreate,
@@ -38,9 +40,40 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
         direction=scene.direction,
         edit_note=scene.edit_note,
     )
+    # シーン作成
+    new_scene = Scene(
+        **scene.dict(),
+        video_id=video_id
+    )
     db.add(new_scene)
     db.commit()
     db.refresh(new_scene)
+
+    initial_tasks = get_scene_initial_tasks(
+        scene_id=new_scene.id,
+        scene_order=new_scene.position
+    )
+
+    for task_data in initial_tasks:
+        # 重複チェック（重要）
+        exists = db.query(Task).filter(
+            Task.scene_id == new_scene.id,
+            Task.task_type == task_data["task_type"]
+        ).first()
+
+        if not exists:
+            new_task = Task(
+                title=task_data["title"],
+                task_type=task_data["task_type"],
+                scene_id=task_data["scene_id"],
+                video_id=new_scene.video_id,
+                priority=task_data["priority"],
+                status="未着手"
+            )
+            db.add(new_task)
+
+    db.commit()
+
     return new_scene
 
 
