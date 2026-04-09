@@ -1222,3 +1222,58 @@
   color: #666;
   margin-left: 6px;
 }
+
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-expand-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  padding: 0;
+  width: 20px;
+  line-height: 1;
+}
+
+.task-expand-spacer {
+  display: inline-block;
+  width: 20px;
+}
+
+.task-progress-inline {
+  font-size: 12px;
+  color: #666;
+  margin-left: 6px;
+}
+
+.task-children {
+  margin-left: 16px;
+  border-left: 2px solid #ddd;
+  padding-left: 8px;
+  margin-top: 8px;
+}
+
+.task-child-card {
+  background: #fafafa;
+  padding: 6px;
+  margin: 4px 0;
+  border-radius: 6px;
+}
+
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.task-drag-handle.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

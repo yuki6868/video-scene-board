@@ -419,6 +419,7 @@ function App() {
   const [editingTask, setEditingTask] = useState(null);
 
   const [activeTask, setActiveTask] = useState(null);
+  const [expandedTaskIds, setExpandedTaskIds] = useState({});
 
   const [editingAsset, setEditingAsset] = useState(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -485,6 +486,13 @@ function App() {
       task_type: task.task_type,
       scene_id: task.scene_id,
     });
+  }
+
+  function toggleTaskExpanded(taskId) {
+    setExpandedTaskIds((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId],
+    }));
   }
 
   function getSceneTaskProgress(sceneId) {
@@ -825,19 +833,17 @@ function App() {
     return Object.values(parentMap);
   }
 
-  const taskColumns = useMemo(() => {
-    const grouped = {
-      未着手: tasks.filter((t) => t.status === "未着手"),
-      作業中: tasks.filter((t) => t.status === "作業中"),
-      完了: tasks.filter((t) => t.status === "完了"),
-    };
-
-    return {
-      未着手: buildTaskTree(sortTasksByPriority(grouped.未着手)),
-      作業中: buildTaskTree(sortTasksByPriority(grouped.作業中)),
-      完了: buildTaskTree(sortTasksByPriority(grouped.完了)),
-    };
+  const taskTree = useMemo(() => {
+    return buildTaskTree(sortTasksByPriority(tasks));
   }, [tasks]);
+
+  const taskColumns = useMemo(() => {
+    return {
+      未着手: taskTree.filter((task) => task.status === "未着手"),
+      作業中: taskTree.filter((task) => task.status === "作業中"),
+      完了: taskTree.filter((task) => task.status === "完了"),
+    };
+  }, [taskTree]);
 
   const resetSceneForm = () => {
     setSceneForm(initialSceneForm);
@@ -1365,80 +1371,167 @@ function App() {
                               (scene) => scene.id === task.scene_id
                             );
 
+                            const hasChildren = task.children && task.children.length > 0;
+
                             return (
                               <div key={task.id}>
-                                
-                                {/* 親タスク */}
-                                <DraggableTaskCard task={task}>
-                                  {({ attributes, listeners }) => (
-                                    <article className={`task-card ${getTaskPriorityCardClass(task.priority)}`}>
-                                      <div className="task-card-header">
+                                {hasChildren ? (
+                                  // 子あり親タスク: ドラッグ不可
+                                  <article className={`task-card ${getTaskPriorityCardClass(task.priority)}`}>
+                                    <div className="task-card-header">
+                                      <span className="drag-handle task-drag-handle is-disabled">⠿</span>
+
+                                      <div className="task-title-row">
                                         <button
                                           type="button"
-                                          className="drag-handle task-drag-handle"
-                                          {...attributes}
-                                          {...listeners}
+                                          className="task-expand-button"
+                                          onClick={() => toggleTaskExpanded(task.id)}
                                         >
-                                          ⠿
+                                          {expandedTaskIds[task.id] ? "▼" : "▶"}
                                         </button>
 
                                         <h4>
                                           {task.title}
-                                          {task.children && task.children.length > 0 && (
-                                            <span className="task-progress-inline">
-                                              {" "}
-                                              ({getChildProgress(task).done}/{getChildProgress(task).total})
-                                            </span>
-                                          )}
-                                        </h4>
-
-                                        <div className="task-badge-group">
-                                          <span className={getPriorityClassName(task.priority)}>
-                                            優先度: {task.priority}
+                                          <span className="task-progress-inline">
+                                            {" "}
+                                            ({getChildProgress(task).done}/{getChildProgress(task).total})
                                           </span>
-                                        </div>
+                                        </h4>
                                       </div>
-                                    </article>
-                                  )}
-                                </DraggableTaskCard>
 
-                                {/* 子タスク */}
-                                {task.children && task.children.length > 0 && (
-                                  <div className="task-children">
-                                    {task.children.map((child) => {
-                                      const childScene = scenes.find(
-                                        (scene) => scene.id === child.scene_id
-                                      );
+                                      <div className="task-badge-group">
+                                        <span className={getPriorityClassName(task.priority)}>
+                                          優先度: {task.priority}
+                                        </span>
+                                        <span className={getTaskStatusClassName(task.status)}>
+                                          {task.status}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </article>
+                                ) : (
+                                  // 子なし単独タスク: ドラッグ可
+                                  <DraggableTaskCard task={task}>
+                                    {({ attributes, listeners }) => (
+                                      <article className={`task-card ${getTaskPriorityCardClass(task.priority)}`}>
+                                        <div className="task-card-header">
+                                          <button
+                                            type="button"
+                                            className="drag-handle task-drag-handle"
+                                            {...attributes}
+                                            {...listeners}
+                                            title="ドラッグで移動"
+                                          >
+                                            ⠿
+                                          </button>
 
-                                      return (
-                                        <div key={child.id} className="task-child-card">
-                                          <p>・{child.title}</p>
+                                          <h4>{task.title}</h4>
 
-                                          <div className="task-actions">
-                                            {child.status !== "未着手" && (
-                                              <button onClick={() => handleUpdateTaskStatus(child, "未着手")}>
-                                                未着手
-                                              </button>
-                                            )}
-
-                                            {child.status !== "作業中" && (
-                                              <button onClick={() => handleUpdateTaskStatus(child, "作業中")}>
-                                                作業中
-                                              </button>
-                                            )}
-
-                                            {child.status !== "完了" && (
-                                              <button onClick={() => handleUpdateTaskStatus(child, "完了")}>
-                                                完了
-                                              </button>
-                                            )}
+                                          <div className="task-badge-group">
+                                            <span className={getPriorityClassName(task.priority)}>
+                                              優先度: {task.priority}
+                                            </span>
+                                            <span className={getTaskStatusClassName(task.status)}>
+                                              {task.status}
+                                            </span>
                                           </div>
                                         </div>
-                                      );
-                                    })}
-                                  </div>
+
+                                        <div className="task-meta">
+                                          <span className="task-meta-item">
+                                            種別: {task.task_type || "未設定"}
+                                          </span>
+                                          <span className="task-meta-item">
+                                            対象:{" "}
+                                            {relatedScene
+                                              ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+                                              : "動画全体"}
+                                          </span>
+                                        </div>
+
+                                        <p className="task-detail">
+                                          {task.detail || "詳細は未設定です。"}
+                                        </p>
+
+                                        <div className="task-actions">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEdit(task)}
+                                          >
+                                            編集
+                                          </button>
+
+                                          {task.status !== "未着手" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateTaskStatus(task, "未着手")}
+                                            >
+                                              未着手へ
+                                            </button>
+                                          )}
+
+                                          {task.status !== "作業中" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateTaskStatus(task, "作業中")}
+                                            >
+                                              作業中へ
+                                            </button>
+                                          )}
+
+                                          {task.status !== "完了" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateTaskStatus(task, "完了")}
+                                            >
+                                              完了へ
+                                            </button>
+                                          )}
+
+                                          <button
+                                            type="button"
+                                            className="delete-button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteTask(task.id);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                          >
+                                            削除
+                                          </button>
+                                        </div>
+                                      </article>
+                                    )}
+                                  </DraggableTaskCard>
                                 )}
 
+                                {hasChildren && expandedTaskIds[task.id] && (
+                                  <div className="task-children">
+                                    {task.children.map((child) => (
+                                      <div key={child.id} className="task-child-card">
+                                        <p>・{child.title}</p>
+
+                                        <div className="task-actions">
+                                          {child.status !== "未着手" && (
+                                            <button onClick={() => handleUpdateTaskStatus(child, "未着手")}>
+                                              未着手
+                                            </button>
+                                          )}
+                                          {child.status !== "作業中" && (
+                                            <button onClick={() => handleUpdateTaskStatus(child, "作業中")}>
+                                              作業中
+                                            </button>
+                                          )}
+                                          {child.status !== "完了" && (
+                                            <button onClick={() => handleUpdateTaskStatus(child, "完了")}>
+                                              完了
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             );
                           })
