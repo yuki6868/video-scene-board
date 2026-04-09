@@ -1,5 +1,6 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
+from sqlalchemy.orm import relationship
 
 from app.db.database import Base
 
@@ -11,6 +12,14 @@ class Task(Base):
     video_id = Column(Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False, index=True)
     scene_id = Column(Integer, ForeignKey("scenes.id", ondelete="SET NULL"), nullable=True, index=True)
     asset_id = Column(Integer, ForeignKey("assets.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+
+    children = relationship(
+        "Task",
+        backref="parent",
+        remote_side="Task.id"
+    )
 
     title = Column(String(255), nullable=False)
     detail = Column(Text, nullable=True)

@@ -36,6 +36,12 @@ def migrate_video_columns():
 
         conn.commit()
 
+def migrate_task_parent_column(engine):
+    with engine.connect() as conn:
+        columns = [row[1] for row in conn.execute(text("PRAGMA table_info(tasks)")).fetchall()]
+        if "parent_task_id" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER"))
+            conn.commit()
 
 def migrate_scene_columns():
     with engine.connect() as conn:
@@ -169,6 +175,7 @@ def backfill_task_asset_links():
 
 migrate_voice_assets_table(engine)
 Base.metadata.create_all(bind=engine)
+migrate_task_parent_column(engine)
 migrate_video_columns()
 migrate_scene_columns()
 migrate_task_columns()
