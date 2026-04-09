@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.dependencies.db import get_db
 from app.models.voice_asset import VoiceAsset
 from app.models.scene import Scene
-from app.schemas.voice_asset import VoiceAssetCreate, VoiceAssetResponse
+from app.schemas.voice_asset import VoiceAssetGenerateRequest, VoiceAssetResponse
 
 from pathlib import Path
 
@@ -21,7 +21,7 @@ OUTPUT_BASE_DIR = Path("outputs")
 # 生成API
 # =========================
 @router.post("/generate", response_model=VoiceAssetResponse)
-def generate_voice_asset(payload: VoiceAssetCreate, db: Session = Depends(get_db)):
+def generate_voice_asset(payload: VoiceAssetGenerateRequest, db: Session = Depends(get_db)):
 
     scene = db.query(Scene).filter(Scene.id == payload.scene_id).first()
     if not scene:
