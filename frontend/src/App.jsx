@@ -26,6 +26,11 @@ import {
   duplicateVideo,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
+import {
+  generateVoiceAsset,
+  fetchVoiceAssets,
+  selectVoiceAsset,
+} from "./api/voiceAssetApi";
 
 import AssetEditModal from "./components/modals/AssetEditModal";
 import VideoModal from "./components/modals/VideoModal";
@@ -60,6 +65,27 @@ const initialVideoForm = {
   goal: "",
   status: "draft",
 };
+
+const VOICE_STYLE_OPTIONS = [
+  { label: "ずんだもん / ノーマル", value: 3 },
+  { label: "ずんだもん / あまあま", value: 1 },
+  { label: "ずんだもん / ツンツン", value: 7 },
+  { label: "ずんだもん / セクシー", value: 5 },
+  { label: "ずんだもん / ささやき", value: 22 },
+  { label: "ずんだもん / ひそひそ", value: 38 },
+
+  { label: "めたん / ノーマル", value: 2 },
+  { label: "めたん / あまあま", value: 0 },
+  { label: "めたん / ツンツン", value: 6 },
+  { label: "めたん / セクシー", value: 4 },
+
+  { label: "春日部つむぎ / ノーマル", value: 8 },
+
+  { label: "玄野武宏 / ノーマル", value: 11 },
+  { label: "玄野武宏 / 喜び", value: 39 },
+  { label: "玄野武宏 / ツンギレ", value: 40 },
+  { label: "玄野武宏 / 悲しみ", value: 41 },
+];
 
 function truncateText(text, maxLength = 80) {
   if (!text) return "未設定";
@@ -381,6 +407,19 @@ function App() {
     scene_id: null,
   });
 
+  const [voiceAssets, setVoiceAssets] = useState([]);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+
+  const [voiceForm, setVoiceForm] = useState({
+    text: "",
+    style_id: 3,
+    speed: 1.0,
+    pitch: 0.0,
+    intonation: 1.0,
+    volume: 1.0,
+  });
+
   const isSearching = searchText.trim() !== "";
 
   const selectedVideo = useMemo(() => {
@@ -500,6 +539,85 @@ function App() {
     }
   }
 
+  async function loadVoiceAssets(sceneId) {
+    if (!sceneId) return;
+
+    try {
+      setVoiceError("");
+      const data = await fetchVoiceAssets(sceneId);
+      setVoiceAssets(data);
+    } catch (error) {
+      console.error(error);
+      setVoiceError(error.message);
+    }
+  }
+
+  function handleVoiceFormChange(event) {
+    const { name, value } = event.target;
+
+    setVoiceForm((prev) => ({
+      ...prev,
+      [name]:
+        name === "text"
+          ? value
+          : Number(value),
+    }));
+  }
+
+  async function handleGenerateVoice() {
+    if (!selectedScene) return;
+
+    const textToUse =
+      voiceForm.text?.trim() ||
+      selectedScene.script ||
+      selectedScene.telop ||
+      "";
+
+    if (!textToUse) {
+      alert("セリフがありません");
+      return;
+    }
+
+    try {
+      setVoiceLoading(true);
+      setVoiceError("");
+
+      await generateVoiceAsset({
+        scene_id: selectedScene.id,
+        text: textToUse,
+        style_id: Number(voiceForm.style_id),
+        speed: Number(voiceForm.speed),
+        pitch: Number(voiceForm.pitch),
+        intonation: Number(voiceForm.intonation),
+        volume: Number(voiceForm.volume),
+      });
+
+      await loadVoiceAssets(selectedScene.id);
+
+      setVoiceForm((prev) => ({
+        ...prev,
+        text: textToUse,
+      }));
+    } catch (error) {
+      console.error(error);
+      setVoiceError(error.message);
+    } finally {
+      setVoiceLoading(false);
+    }
+  }
+
+  async function handleSelectVoiceAsset(voiceAssetId) {
+    if (!selectedScene) return;
+
+    try {
+      await selectVoiceAsset(voiceAssetId);
+      await loadVoiceAssets(selectedScene.id);
+    } catch (error) {
+      console.error(error);
+      setVoiceError(error.message);
+    }
+  }
+
   const loadScenesByVideo = async (videoId) => {
     if (!videoId) {
       setScenes([]);
@@ -544,6 +662,20 @@ function App() {
       setTasksError("");
     }
   }, [selectedVideoId]);
+
+  useEffect(() => {
+    if (!selectedScene) {
+      setVoiceAssets([]);
+      return;
+    }
+
+    setVoiceForm((prev) => ({
+      ...prev,
+      text: selectedScene.script || selectedScene.telop || "",
+    }));
+
+    loadVoiceAssets(selectedScene.id);
+  }, [selectedScene]);
 
   const filteredScenes = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -1389,6 +1521,148 @@ function App() {
         onSubmit={handleVideoSubmit}
         onClose={closeVideoModal}
       />
+
+      <section className="voice-panel">
+        <div className="voice-panel-header">
+          <h3>音声生成</h3>
+          {voiceLoading && <span className="voice-status">生成中...</span>}
+        </div>
+
+        {voiceError && <p className="voice-error">{voiceError}</p>}
+
+        <div className="voice-form-grid">
+          <label className="voice-form-field voice-form-field-full">
+            <span>セリフ</span>
+            <textarea
+              name="text"
+              value={voiceForm.text}
+              onChange={handleVoiceFormChange}
+              rows={4}
+              placeholder="読み上げるセリフを入力"
+            />
+          </label>
+
+          <label className="voice-form-field">
+            <span>話者</span>
+            <select
+              name="style_id"
+              value={voiceForm.style_id}
+              onChange={handleVoiceFormChange}
+            >
+              {VOICE_STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="voice-form-field">
+            <span>speed</span>
+            <input
+              type="number"
+              step="0.1"
+              name="speed"
+              value={voiceForm.speed}
+              onChange={handleVoiceFormChange}
+            />
+          </label>
+
+          <label className="voice-form-field">
+            <span>pitch</span>
+            <input
+              type="number"
+              step="0.1"
+              name="pitch"
+              value={voiceForm.pitch}
+              onChange={handleVoiceFormChange}
+            />
+          </label>
+
+          <label className="voice-form-field">
+            <span>intonation</span>
+            <input
+              type="number"
+              step="0.1"
+              name="intonation"
+              value={voiceForm.intonation}
+              onChange={handleVoiceFormChange}
+            />
+          </label>
+
+          <label className="voice-form-field">
+            <span>volume</span>
+            <input
+              type="number"
+              step="0.1"
+              name="volume"
+              value={voiceForm.volume}
+              onChange={handleVoiceFormChange}
+            />
+          </label>
+        </div>
+
+        <div className="voice-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleGenerateVoice}
+            disabled={voiceLoading}
+          >
+            音声を生成
+          </button>
+        </div>
+
+        <div className="voice-history">
+          <h4>生成済み音声</h4>
+
+          {voiceAssets.length === 0 ? (
+            <p className="voice-empty">まだ生成された音声はありません</p>
+          ) : (
+            <div className="voice-history-list">
+              {voiceAssets.map((asset) => (
+                <article
+                  key={asset.id}
+                  className={`voice-history-card ${asset.is_selected ? "selected" : ""}`}
+                >
+                  <div className="voice-history-card-header">
+                    <div>
+                      <strong>
+                        {asset.character_name} / {asset.style_name}
+                      </strong>
+                      <p className="voice-history-meta">
+                        speed:{asset.speed} / pitch:{asset.pitch} / intonation:{asset.intonation} / volume:{asset.volume}
+                      </p>
+                    </div>
+
+                    {asset.is_selected && (
+                      <span className="voice-selected-badge">採用中</span>
+                    )}
+                  </div>
+
+                  <p className="voice-history-text">{asset.text}</p>
+
+                  {asset.audio_path && (
+                    <audio controls src={`http://127.0.0.1:8000/${asset.audio_path}`}>
+                      お使いのブラウザはaudioタグをサポートしていません。
+                    </audio>
+                  )}
+
+                  <div className="voice-history-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => handleSelectVoiceAsset(asset.id)}
+                    >
+                      採用する
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
