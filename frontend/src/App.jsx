@@ -327,6 +327,14 @@ function SortableItem({ scene, progress, onOpenDetail, onDelete, onDuplicate, dr
           <strong>素材</strong>
           <p>{truncateText(scene.materials, 60)}</p>
         </div>
+
+        {scene.audio_path && (
+          <audio
+            controls
+            src={`http://127.0.0.1:8000/${scene.audio_path}`}
+            style={{ width: "100%", marginTop: "8px" }}
+          />
+        )}
       </div>
 
       <div className="scene-section">

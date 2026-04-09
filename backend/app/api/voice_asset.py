@@ -98,6 +98,12 @@ def select_voice_asset(voice_asset_id: int, db: Session = Depends(get_db)):
     ).update({"is_selected": False})
 
     target.is_selected = True
+        # Sceneに反映
+    scene = db.query(Scene).filter(Scene.id == target.scene_id).first()
+
+    if scene:
+        scene.audio_path = target.audio_path
+        scene.background_path = target.subtitle_png_path
 
     db.commit()
 

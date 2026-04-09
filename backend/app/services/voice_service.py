@@ -58,7 +58,7 @@ ort = Onnxruntime.load_once(filename=str(onnxruntime_path))
 ojt = OpenJtalk(str(dict_dir))
 synthesizer = Synthesizer(ort, ojt)
 
-
+LOADED_MODELS = set()
 # =========================
 # メイン関数
 # =========================
@@ -80,8 +80,10 @@ def generate_voice_file(
     model_path = BASE_DIR / f"voicevox_core/models/vvms/{vvm_number}.vvm"
 
     # モデル読み込み
-    model = VoiceModelFile.open(str(model_path))
-    synthesizer.load_voice_model(model)
+    if vvm_number not in LOADED_MODELS:
+        model = VoiceModelFile.open(str(model_path))
+        synthesizer.load_voice_model(model)
+        LOADED_MODELS.add(vvm_number)
 
     # 出力ディレクトリ
     voice_dir = output_dir / "voice_wav"
