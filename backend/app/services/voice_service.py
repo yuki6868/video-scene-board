@@ -49,10 +49,16 @@ def sanitize_filename(text: str, max_len: int = 10) -> str:
 # =========================
 # 初期化（1回だけ）
 # =========================
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_DIR = Path(__file__).resolve().parent
+APP_DIR = SERVICE_DIR.parent
+BACKEND_DIR = APP_DIR.parent
+PROJECT_DIR = BACKEND_DIR.parent
+EXTERNAL_ROOT_DIR = PROJECT_DIR.parent
 
-onnxruntime_path = BASE_DIR / "voicevox_core/onnxruntime/lib/libvoicevox_onnxruntime.1.17.3.dylib"
-dict_dir = BASE_DIR / "voicevox_core/dict/open_jtalk_dic_utf_8-1.11"
+VOICEVOX_DIR = EXTERNAL_ROOT_DIR / "voicevox_core"
+
+onnxruntime_path = VOICEVOX_DIR / "onnxruntime" / "lib" / "libvoicevox_onnxruntime.1.17.3.dylib"
+dict_dir = VOICEVOX_DIR / "dict" / "open_jtalk_dic_utf_8-1.11"
 
 ort = Onnxruntime.load_once(filename=str(onnxruntime_path))
 ojt = OpenJtalk(str(dict_dir))
@@ -77,8 +83,7 @@ def generate_voice_file(
     style = speaker_info["style"]
     vvm_number = speaker_info["vvm"]
 
-    model_path = BASE_DIR / f"voicevox_core/models/vvms/{vvm_number}.vvm"
-
+    model_path = VOICEVOX_DIR / "models" / "vvms" / f"{vvm_number}.vvm"
     # モデル読み込み
     if vvm_number not in LOADED_MODELS:
         model = VoiceModelFile.open(str(model_path))

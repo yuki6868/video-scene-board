@@ -92,13 +92,12 @@ def select_voice_asset(voice_asset_id: int, db: Session = Depends(get_db)):
     if not target:
         raise HTTPException(status_code=404, detail="VoiceAsset not found")
 
-    # 同じsceneの選択を全解除
     db.query(VoiceAsset).filter(
         VoiceAsset.scene_id == target.scene_id
     ).update({"is_selected": False})
 
     target.is_selected = True
-        # Sceneに反映
+
     scene = db.query(Scene).filter(Scene.id == target.scene_id).first()
 
     if scene:
@@ -107,4 +106,11 @@ def select_voice_asset(voice_asset_id: int, db: Session = Depends(get_db)):
 
     db.commit()
 
-    return {"message": "selected", "id": voice_asset_id}
+    if scene:
+        db.refresh(scene)
+
+    return {
+        "message": "selected",
+        "id": voice_asset_id,
+        "scene": scene,
+    }

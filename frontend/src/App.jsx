@@ -618,8 +618,29 @@ function App() {
     if (!selectedScene) return;
 
     try {
-      await selectVoiceAsset(voiceAssetId);
+      const result = await selectVoiceAsset(voiceAssetId);
+      const updatedScene = result.scene;
+
       await loadVoiceAssets(selectedScene.id);
+
+      if (updatedScene) {
+        setScenes((prev) =>
+          prev.map((scene) =>
+            scene.id === updatedScene.id ? updatedScene : scene
+          )
+        );
+
+        setSelectedScene(updatedScene);
+
+        setSceneForm((prev) => ({
+          ...prev,
+          ...updatedScene,
+          title: updatedScene.title || "",
+          script: updatedScene.script || "",
+          materials: updatedScene.materials || "",
+          duration_seconds: updatedScene.duration_seconds ?? "",
+        }));
+      }
     } catch (error) {
       console.error(error);
       setVoiceError(error.message);
