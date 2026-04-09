@@ -59,12 +59,17 @@ export async function createAsset(asset) {
 }
 
 export async function updateAsset(assetId, asset) {
+  const formData = new FormData();
+
+  Object.entries(asset).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      formData.append(key, value);
+    }
+  });
+
   const response = await fetch(`${ASSET_API_BASE_URL}/${assetId}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(asset),
+    body: formData,
   });
 
   if (!response.ok) {

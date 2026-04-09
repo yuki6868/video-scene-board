@@ -10,21 +10,35 @@ export default function AssetEditModal({
 
   useEffect(() => {
     if (asset) {
-      setForm({
+        setForm({
         title: asset.title || "",
         asset_type: asset.asset_type || "material",
         status: asset.status || "idea",
         location_type: asset.location_type || "none",
         path_or_url: asset.path_or_url || "",
         memo: asset.memo || "",
-      });
-    }
-  }, [asset]);
+        file: null,
+        video_id: asset.video_id,
+        scene_id: asset.scene_id,
+        });
+      }
+    }, [asset]);
 
   if (!isOpen || !form) return null;
 
   function handleChange(e) {
-    const { name, value } = e.target;
+    const { name, value, files } = e.target;
+
+    if (name === "file") {
+        const file = files?.[0] || null;
+        setForm((prev) => ({
+        ...prev,
+        file,
+        path_or_url: file ? file.name : prev.path_or_url,
+        }));
+        return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
@@ -99,6 +113,7 @@ export default function AssetEditModal({
                 onChange={handleChange}
               >
                 <option value="none">未作成</option>
+                <option value="local">ファイル</option>
                 <option value="url">URL</option>
               </select>
             </div>
@@ -114,6 +129,21 @@ export default function AssetEditModal({
                   placeholder="https://..."
                 />
               </div>
+            )}
+
+            {form.location_type === "local" && (
+                <div className="form-field form-field-full">
+                    <label htmlFor="asset-file">ファイル</label>
+                    <input
+                    id="asset-file"
+                    name="file"
+                    type="file"
+                    onChange={handleChange}
+                    />
+                    {form.path_or_url && (
+                    <small>現在のファイル: {form.path_or_url}</small>
+                    )}
+                </div>
             )}
 
             <div className="form-field form-field-full">

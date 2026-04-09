@@ -162,7 +162,22 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{asset_id}", response_model=AssetResponse)
-def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get_db)):
+def update_asset(
+    asset_id: int,
+    video_id: int | None = Form(None),
+    scene_id: int | None = Form(None),
+    asset_type: str | None = Form(None),
+    title: str | None = Form(None),
+    status: str | None = Form(None),
+    location_type: str | None = Form(None),
+    path_or_url: str | None = Form(None),
+    relative_path: str | None = Form(None),
+    source_note: str | None = Form(None),
+    search_keyword: str | None = Form(None),
+    memo: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset not found")
@@ -170,9 +185,22 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
     old_scene_id = asset.scene_id
     old_path = asset.path_or_url
     old_asset_type = asset.asset_type
-    old_status = asset.status
 
-    update_data = asset_in.model_dump(exclude_unset=True)
+    update_data = {
+        "video_id": video_id,
+        "scene_id": scene_id,
+        "asset_type": asset_type,
+        "title": title,
+        "status": status,
+        "location_type": location_type,
+        "path_or_url": path_or_url,
+        "relative_path": relative_path,
+        "source_note": source_note,
+        "search_keyword": search_keyword,
+        "memo": memo,
+    }
+
+    update_data = {k: v for k, v in update_data.items() if v is not None}
 
     next_video_id = update_data.get("video_id", asset.video_id)
     next_scene_id = update_data.get("scene_id", asset.scene_id)
@@ -188,6 +216,22 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
         if scene.video_id != next_video_id:
             raise HTTPException(status_code=400, detail="Scene does not belong to the specified video")
 
+    # ファイルアップロードがある場合は保存して path_or_url を上書き
+    if file:
+        target_asset_type = update_data.get("asset_type", asset.asset_type)
+        subdir = get_subdir(target_asset_type)
+        save_dir = os.path.join(BASE_UPLOAD_DIR, subdir)
+        os.makedirs(save_dir, exist_ok=True)
+
+        filename = f"{uuid.uuid4()}_{file.filename}"
+        file_location = os.path.join(save_dir, filename)
+
+        with open(file_location, "wb") as f:
+            f.write(file.file.read())
+
+        update_data["path_or_url"] = f"uploads/{subdir}/{filename}"
+        update_data["location_type"] = "local"
+
     for key, value in update_data.items():
         setattr(asset, key, value)
 
@@ -195,7 +239,6 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
     if old_asset_type == "background" and old_scene_id is not None:
         old_scene = db.query(Scene).filter(Scene.id == old_scene_id).first()
         if old_scene is not None and old_scene.background_path == old_path:
-            # 背景素材が移動された / 未準備になった / パス変更された場合は解除
             if (
                 asset.scene_id != old_scene_id
                 or asset.asset_type != "background"
@@ -213,7 +256,7 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
             elif scene.background_path == asset.path_or_url:
                 scene.background_path = None
 
-    # 素材に紐づくタスクも同期する
+    # 素材に紐づくタスクも同期
     linked_task = db.query(Task).filter(Task.asset_id == asset.id).first()
     if linked_task is not None:
         if asset.status == "ready":
