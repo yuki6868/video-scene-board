@@ -444,19 +444,6 @@ function App() {
     };
   }
 
-  async function loadTasks() {
-    try {
-      const data = await fetchTasks();
-      setTasks(data);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  useEffect(() => {
-    loadTasks();
-  }, []);
-
   function handleCancelEdit() {
     setEditingTaskId(null);
     setEditingTask(null);
@@ -467,14 +454,14 @@ function App() {
       await updateTask(taskId, editingTask);
       setEditingTaskId(null);
       setEditingTask(null);
-      await loadTasks(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
     } catch (e) {
       console.error(e);
       alert("更新失敗");
     }
   }
 
-  async function loadTasks(videoId) {
+  async function loadTasksByVideo(videoId) {
     setTasksLoading(true);
     setTasksError("");
 
@@ -506,14 +493,14 @@ function App() {
 
     try {
       await updateTask(activeTask.id, { status: overStatus });
-      await loadTasks(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert("ステータス更新に失敗しました");
     }
   }
 
-  const loadScenes = async (videoId) => {
+  const loadScenesByVideo = async (videoId) => {
     if (!videoId) {
       setScenes([]);
       setTasks([]);
@@ -535,9 +522,22 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!selectedVideoId) {
+      setScenes([]);
+      setTasks([]);
+      setTasksError("");
+      return;
+    }
+
+    loadScenesByVideo(selectedVideoId);
+    loadTasksByVideo(selectedVideoId);
+  }, [selectedVideoId]);
+
+
+  useEffect(() => {
     if (selectedVideoId) {
-      loadScenes(selectedVideoId);
-      loadTasks(selectedVideoId);
+      loadScenesByVideo(selectedVideoId);
+      loadTasksByVideo(selectedVideoId);
     } else {
       setScenes([]);
       setTasks([]);
@@ -674,7 +674,7 @@ function App() {
 
     try {
       await deleteTask(taskId);
-      await loadTasks(selectedVideo.id);
+      await loadTasksByVideo(selectedVideo.id);
     } catch (error) {
       console.error(error);
       alert("削除に失敗しました");
@@ -706,7 +706,7 @@ function App() {
       });
 
       // 再取得
-      await loadTasks(selectedVideo.id);
+      await loadTasksByVideo(selectedVideo.id);
     } catch (e) {
       console.error(e);
       alert("作成失敗");
@@ -719,7 +719,7 @@ function App() {
         status: newStatus,
       });
 
-      await loadTasks(selectedVideo.id);
+      await loadTasksByVideo(selectedVideo.id);
     } catch (e) {
       console.error(e);
       alert("更新失敗");
@@ -767,8 +767,8 @@ function App() {
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン並び替えに失敗しました");
-      loadScenes(selectedVideoId);
-      loadTasks(selectedVideoId);
+      loadScenesByVideo(selectedVideoId);
+      loadTasksByVideo(selectedVideoId);
     }
   };
 
@@ -783,7 +783,7 @@ function App() {
         closeSceneModal();
       }
 
-      await loadScenes(selectedVideoId);
+      await loadScenesByVideo(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン削除に失敗しました");
@@ -793,8 +793,8 @@ function App() {
   const handleDuplicate = async (sceneId) => {
     try {
       await duplicateScene(sceneId);
-      await loadScenes(selectedVideoId);
-      await loadTasks(selectedVideoId);
+      await loadScenesByVideo(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "シーン複製に失敗しました");
@@ -838,8 +838,8 @@ function App() {
       }
 
       closeSceneModal();
-      await loadScenes(selectedVideoId);
-      await loadTasks(selectedVideoId);
+      await loadScenesByVideo(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
     } catch (error) {
       console.error(error);
       alert(error.message || "保存に失敗しました");
@@ -1376,7 +1376,7 @@ function App() {
         onChange={handleSceneChange}
         onSubmit={handleSceneSubmit}
         onClose={closeSceneModal}
-        loadTasks={loadTasks}
+        loadTasks={loadTasksByVideo}
         tasks={tasks}
         handleUpdateTaskStatus={handleUpdateTaskStatus}
       />
