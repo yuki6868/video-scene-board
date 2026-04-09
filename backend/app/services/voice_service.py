@@ -9,7 +9,7 @@ from voicevox_core.blocking import (
 )
 
 # =========================
-# 話者情報（既存流用）
+# 話者情報
 # =========================
 SPEAKER_STYLES = [
     {"name": "めたん", "style": "あまあま", "style_id": 0, "vvm": 0},
@@ -60,7 +60,7 @@ synthesizer = Synthesizer(ort, ojt)
 
 
 # =========================
-# メイン関数（これが今回の主役）
+# メイン関数
 # =========================
 def generate_voice_file(
     text: str,
