@@ -50,6 +50,12 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 def create_task(task_in: TaskCreate, db: Session = Depends(get_db)):
     task = Task(**task_in.model_dump())
     db.add(task)
+    db.flush()
+
+    # 親タスクがあるなら追加後に再計算
+    if task.parent_task_id is not None:
+        recalculate_parent_task_status(db, task.parent_task_id)
+
     db.commit()
     db.refresh(task)
     return task
@@ -98,10 +104,17 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
 
     if task.parent_task_id is not None:
         recalculate_parent_task_status(db, task.parent_task_id)
-        db.commit()
 
+    db.commit()
     db.refresh(task)
     return task
+
+
+def delete_task_with_children(db: Session, task: Task) -> None:
+    children = db.query(Task).filter(Task.parent_task_id == task.id).all()
+    for child in children:
+        delete_task_with_children(db, child)
+    db.delete(task)
 
 
 @router.delete("/{task_id}", status_code=204)
@@ -110,6 +123,12 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    db.delete(task)
+    parent_task_id = task.parent_task_id
+
+    delete_task_with_children(db, task)
+    db.flush()
+
+    if parent_task_id is not None:
+        recalculate_parent_task_status(db, parent_task_id)
+
     db.commit()
-    return None

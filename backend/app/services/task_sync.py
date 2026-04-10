@@ -30,5 +30,4 @@ def recalculate_parent_task_status(db, parent_task_id: int | None) -> None:
     else:
         parent_task.status = "作業中"
 
-    # さらに上の親も再計算
     recalculate_parent_task_status(db, parent_task.parent_task_id)

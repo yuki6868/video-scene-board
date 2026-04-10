@@ -424,14 +424,17 @@ function App() {
   const [editingAsset, setEditingAsset] = useState(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
-  const [newTask, setNewTask] = useState({
+  const initialNewTask = {
+    create_mode: "section",
+    scene_id: "",
+    parent_task_id: "",
     title: "",
     detail: "",
-    task_type: "加工",
     priority: "中",
     status: "未着手",
-    scene_id: null,
-  });
+  };
+
+  const [newTask, setNewTask] = useState(initialNewTask);
 
   const [voiceAssets, setVoiceAssets] = useState([]);
   const [voiceLoading, setVoiceLoading] = useState(false);
@@ -835,11 +838,16 @@ function App() {
     return roots;
   }
 
+  function resetNewTask() {
+    setNewTask(initialNewTask);
+  }
+
   function TaskTreeNode({
     task,
     expandedTaskIds,
     toggleTaskExpanded,
     handleUpdateTaskStatus,
+    handleDeleteTask,
     scenes,
   }) {
     const relatedScene = scenes.find((scene) => scene.id === task.scene_id);
@@ -908,6 +916,13 @@ function App() {
               完了
             </button>
           )}
+          <button
+            type="button"
+            className="task-delete-button"
+            onClick={() => handleDeleteTask(task.id)}
+          >
+            削除
+          </button>
         </div>
 
         {hasChildren && expandedTaskIds[task.id] && (
@@ -919,6 +934,7 @@ function App() {
                 expandedTaskIds={expandedTaskIds}
                 toggleTaskExpanded={toggleTaskExpanded}
                 handleUpdateTaskStatus={handleUpdateTaskStatus}
+                handleDeleteTask={handleDeleteTask}
                 scenes={scenes}
               />
             ))}
@@ -935,6 +951,34 @@ function App() {
   const sceneGroupTasks = useMemo(() => {
     return taskTree.filter((task) => task.task_type === "scene_group");
   }, [taskTree]);
+
+  const sceneGroupBySceneId = useMemo(() => {
+    const map = {};
+
+    tasks.forEach((task) => {
+      if (task.task_type === "scene_group" && task.scene_id != null) {
+        map[task.scene_id] = task;
+      }
+    });
+
+    return map;
+  }, [tasks]);
+
+  const availableParentTasks = useMemo(() => {
+    if (!newTask.scene_id) return [];
+
+    const sceneId = Number(newTask.scene_id);
+    const sceneGroup = sceneGroupBySceneId[sceneId];
+
+    if (!sceneGroup) return [];
+
+    // 子タスク追加時は、scene_group直下の親タスクを候補にする
+    return tasks.filter(
+      (task) =>
+        task.scene_id === sceneId &&
+        task.parent_task_id === sceneGroup.id
+    );
+  }, [tasks, newTask.scene_id, sceneGroupBySceneId]);
 
   const taskColumns = useMemo(() => {
     return {
@@ -1052,28 +1096,84 @@ function App() {
   async function handleCreateTask() {
     if (!selectedVideo) return;
 
+    if (!newTask.scene_id) {
+      alert("対象シーンを選んでください");
+      return;
+    }
+
     if (!newTask.title.trim()) {
       alert("タイトルは必須です");
       return;
     }
 
+    const sceneId = Number(newTask.scene_id);
+    const sceneGroup = sceneGroupBySceneId[sceneId];
+
+    if (!sceneGroup) {
+      alert("このシーンの親タスクが見つかりません");
+      return;
+    }
+
+    let parentTaskId = null;
+    let taskType = "scene_sub";
+
+    if (newTask.create_mode === "section") {
+      // 親タスクを追加 → scene_group の直下
+      parentTaskId = sceneGroup.id;
+      taskType = "scene_section";
+    } else {
+      // 子タスクを追加 → 選んだ親タスクの直下
+      if (!newTask.parent_task_id) {
+        alert("親タスクを選んでください");
+        return;
+      }
+
+      parentTaskId = Number(newTask.parent_task_id);
+
+      const parentTask = tasks.find((task) => task.id === parentTaskId);
+
+      if (!parentTask) {
+        alert("親タスクが見つかりません");
+        return;
+      }
+
+      // 既存カテゴリ親にぶら下げる場合は、それっぽい task_type に寄せる
+      switch (parentTask.task_type) {
+        case "voice":
+          taskType = "voice_sub";
+          break;
+        case "background":
+          taskType = "background_sub";
+          break;
+        case "asset":
+          taskType = "asset_sub";
+          break;
+        default:
+          taskType = "scene_sub";
+          break;
+      }
+    }
+
     try {
       await createTask({
-        ...newTask,
         video_id: selectedVideo.id,
+        scene_id: sceneId,
+        parent_task_id: parentTaskId,
+        title: newTask.title.trim(),
+        detail: newTask.detail.trim(),
+        task_type: taskType,
+        priority: newTask.priority,
+        status: newTask.status,
       });
 
-      // リセット
-      setNewTask({
-        title: "",
-        detail: "",
-        task_type: "加工",
-        priority: "中",
-        status: "未着手",
-        scene_id: null,
-      });
+      setExpandedTaskIds((prev) => ({
+        ...prev,
+        [sceneGroup.id]: true,
+        ...(parentTaskId ? { [parentTaskId]: true } : {}),
+      }));
 
-      // 再取得
+      resetNewTask();
+
       await loadTasksByVideo(selectedVideo.id);
     } catch (e) {
       console.error(e);
@@ -1389,29 +1489,31 @@ function App() {
               <div className="task-create-form">
                 <h3>TODO追加</h3>
 
-                <input
-                  type="text"
-                  placeholder="タイトル"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                />
-
-                <textarea
-                  placeholder="詳細"
-                  value={newTask.detail}
-                  onChange={(e) => setNewTask({ ...newTask, detail: e.target.value })}
-                />
-
                 <select
-                  value={newTask.scene_id || ""}
+                  value={newTask.create_mode}
                   onChange={(e) =>
-                    setNewTask({
-                      ...newTask,
-                      scene_id: e.target.value ? Number(e.target.value) : null,
-                    })
+                    setNewTask((prev) => ({
+                      ...prev,
+                      create_mode: e.target.value,
+                      parent_task_id: "",
+                    }))
                   }
                 >
-                  <option value="">動画全体</option>
+                  <option value="section">親タスクを追加</option>
+                  <option value="child">子タスクを追加</option>
+                </select>
+
+                <select
+                  value={newTask.scene_id}
+                  onChange={(e) =>
+                    setNewTask((prev) => ({
+                      ...prev,
+                      scene_id: e.target.value,
+                      parent_task_id: "",
+                    }))
+                  }
+                >
+                  <option value="">対象シーンを選択</option>
                   {scenes.map((scene) => (
                     <option key={scene.id} value={scene.id}>
                       Scene #{scene.position + 1} {scene.title}
@@ -1419,16 +1521,63 @@ function App() {
                   ))}
                 </select>
 
+                {newTask.create_mode === "child" && (
+                  <select
+                    value={newTask.parent_task_id}
+                    onChange={(e) =>
+                      setNewTask((prev) => ({
+                        ...prev,
+                        parent_task_id: e.target.value,
+                      }))
+                    }
+                    disabled={!newTask.scene_id}
+                  >
+                    <option value="">親タスクを選択</option>
+                    {availableParentTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <input
+                  type="text"
+                  placeholder={
+                    newTask.create_mode === "section"
+                      ? "親タスク名（例: テロップ）"
+                      : "子タスク名（例: テロップを入れる）"
+                  }
+                  value={newTask.title}
+                  onChange={(e) =>
+                    setNewTask((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                />
+
+                <textarea
+                  placeholder="詳細"
+                  value={newTask.detail}
+                  onChange={(e) =>
+                    setNewTask((prev) => ({ ...prev, detail: e.target.value }))
+                  }
+                />
+
                 <select
                   value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+                  onChange={(e) =>
+                    setNewTask((prev) => ({ ...prev, priority: e.target.value }))
+                  }
                 >
                   <option value="高">高</option>
                   <option value="中">中</option>
                   <option value="低">低</option>
                 </select>
 
-                <button type="button" className="submit-button" onClick={handleCreateTask}>
+                <button
+                  type="button"
+                  className="submit-button"
+                  onClick={handleCreateTask}
+                >
                   追加
                 </button>
               </div>
@@ -1532,6 +1681,7 @@ function App() {
                                             expandedTaskIds={expandedTaskIds}
                                             toggleTaskExpanded={toggleTaskExpanded}
                                             handleUpdateTaskStatus={handleUpdateTaskStatus}
+                                            handleDeleteTask={handleDeleteTask}
                                             scenes={scenes}
                                           />
                                         ))}

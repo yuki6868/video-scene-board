@@ -1486,3 +1486,14 @@
   color: #64748b;
   line-height: 1.6;
 }
+
+.task-group-actions .task-delete-button,
+.task-child-actions .task-delete-button {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.task-group-actions .task-delete-button:hover,
+.task-child-actions .task-delete-button:hover {
+  background: #fecaca;
+}
