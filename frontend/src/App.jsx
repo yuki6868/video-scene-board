@@ -1376,12 +1376,11 @@ function App() {
                             return (
                               <div key={task.id}>
                                 {hasChildren ? (
-                                  // 子あり親タスク: ドラッグ不可
                                   <article className={`task-card ${getTaskPriorityCardClass(task.priority)}`}>
                                     <div className="task-card-header">
                                       <span className="drag-handle task-drag-handle is-disabled">⠿</span>
 
-                                      <div className="task-title-row">
+                                      <div className="task-title-row task-title-row-parent">
                                         <button
                                           type="button"
                                           className="task-expand-button"
@@ -1408,6 +1407,70 @@ function App() {
                                         </span>
                                       </div>
                                     </div>
+
+                                    <div className="task-meta">
+                                      <span className="task-meta-item">
+                                        種別: {task.task_type || "未設定"}
+                                      </span>
+                                      <span className="task-meta-item">
+                                        対象:{" "}
+                                        {relatedScene
+                                          ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+                                          : "動画全体"}
+                                      </span>
+                                    </div>
+
+                                    <p className="task-detail">
+                                      {task.detail || "詳細は未設定です。"}
+                                    </p>
+
+                                    {expandedTaskIds[task.id] && (
+                                      <div className="task-children">
+                                        {task.children.map((child) => (
+                                          <div key={child.id} className="task-child-card">
+                                            <div className="task-child-header">
+                                              <div className="task-child-title-wrap">
+                                                <span className="task-child-bullet">•</span>
+                                                <span className="task-child-title">{child.title}</span>
+                                              </div>
+
+                                              <div className="task-child-badges">
+                                                <span className={getPriorityClassName(child.priority)}>
+                                                  優先度: {child.priority}
+                                                </span>
+                                                <span className={getTaskStatusClassName(child.status)}>
+                                                  {child.status}
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            <p className="task-child-detail">
+                                              {child.detail || "詳細は未設定です。"}
+                                            </p>
+
+                                            <div className="task-actions task-child-actions">
+                                              {child.status !== "未着手" && (
+                                                <button type="button" onClick={() => handleUpdateTaskStatus(child, "未着手")}>
+                                                  未着手
+                                                </button>
+                                              )}
+
+                                              {child.status !== "作業中" && (
+                                                <button type="button" onClick={() => handleUpdateTaskStatus(child, "作業中")}>
+                                                  作業中
+                                                </button>
+                                              )}
+
+                                              {child.status !== "完了" && (
+                                                <button type="button" onClick={() => handleUpdateTaskStatus(child, "完了")}>
+                                                  完了
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </article>
                                 ) : (
                                   // 子なし単独タスク: ドラッグ可
@@ -1505,25 +1568,47 @@ function App() {
                                   </DraggableTaskCard>
                                 )}
 
-                                {hasChildren && expandedTaskIds[task.id] && (
+                                {/* {hasChildren && expandedTaskIds[task.id] && (
                                   <div className="task-children">
                                     {task.children.map((child) => (
                                       <div key={child.id} className="task-child-card">
-                                        <p>・{child.title}</p>
+                                        <div className="task-child-header">
+                                          <div className="task-child-title-wrap">
+                                            <span className="task-child-bullet">•</span>
+                                            <span className="task-child-title">{child.title}</span>
+                                          </div>
 
-                                        <div className="task-actions">
+                                          <div className="task-child-badges">
+                                            <span className={getPriorityClassName(child.priority)}>
+                                              優先度: {child.priority}
+                                            </span>
+                                            <span className={getTaskStatusClassName(child.status)}>
+                                              {child.status}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        {child.detail && (
+                                          <p className="task-child-detail">
+                                            {child.detail}
+                                          </p>
+                                        )}
+
+                                        <div className="task-actions task-child-actions">
                                           {child.status !== "未着手" && (
-                                            <button onClick={() => handleUpdateTaskStatus(child, "未着手")}>
+                                            <button type="button" onClick={() => handleUpdateTaskStatus(child, "未着手")}>
                                               未着手
                                             </button>
                                           )}
+
                                           {child.status !== "作業中" && (
-                                            <button onClick={() => handleUpdateTaskStatus(child, "作業中")}>
+                                            <button type="button" onClick={() => handleUpdateTaskStatus(child, "作業中")}>
                                               作業中
                                             </button>
                                           )}
+
                                           {child.status !== "完了" && (
-                                            <button onClick={() => handleUpdateTaskStatus(child, "完了")}>
+                                            <button type="button" onClick={() => handleUpdateTaskStatus(child, "完了")}>
                                               完了
                                             </button>
                                           )}
@@ -1531,7 +1616,7 @@ function App() {
                                       </div>
                                     ))}
                                   </div>
-                                )}
+                                )} */}
                               </div>
                             );
                           })

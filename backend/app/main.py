@@ -115,6 +115,65 @@ def migrate_voice_assets_table(engine):
         """))
         conn.commit()
 
+def remove_duplicate_tasks(engine):
+
+    with Session(engine) as session:
+        tasks = session.query(Task).all()
+
+        seen = set()
+        duplicates = []
+
+        for task in tasks:
+            key = (task.scene_id, task.title, task.parent_task_id)
+            if key in seen:
+                duplicates.append(task)
+            else:
+                seen.add(key)
+
+        for task in duplicates:
+            session.delete(task)
+
+        session.commit()
+
+def migrate_existing_tasks_to_parent(engine):
+
+    with Session(engine) as session:
+        # 全タスク取得
+        tasks = session.query(Task).all()
+
+        # シーンごとに処理
+        scene_map = {}
+        for task in tasks:
+            scene_map.setdefault(task.scene_id, []).append(task)
+
+        for scene_id, scene_tasks in scene_map.items():
+            # 親タスクを取得
+            parent_map = {
+                "voice": None,
+                "background": None,
+                "asset": None,
+            }
+
+            for task in scene_tasks:
+                if task.task_type in parent_map:
+                    parent_map[task.task_type] = task
+
+            # 子タスクを親に紐づける
+            for task in scene_tasks:
+                if task.parent_task_id is not None:
+                    continue  # すでに正しい
+
+                if task.task_type == "voice_sub" and parent_map["voice"]:
+                    task.parent_task_id = parent_map["voice"].id
+
+                elif task.task_type == "background_sub" and parent_map["background"]:
+                    task.parent_task_id = parent_map["background"].id
+
+                elif task.task_type == "asset_sub" and parent_map["asset"]:
+                    task.parent_task_id = parent_map["asset"].id
+
+        session.commit()
+
 def backfill_task_asset_links():
     with Session(bind=engine) as db:
         tasks = db.query(Task).filter(Task.asset_id.is_(None)).all()
@@ -176,6 +235,8 @@ def backfill_task_asset_links():
 migrate_voice_assets_table(engine)
 Base.metadata.create_all(bind=engine)
 migrate_task_parent_column(engine)
+migrate_existing_tasks_to_parent(engine)
+remove_duplicate_tasks(engine)
 migrate_video_columns()
 migrate_scene_columns()
 migrate_task_columns()
