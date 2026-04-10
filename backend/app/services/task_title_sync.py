@@ -1,42 +1,47 @@
 from app.models.task import Task
 
 
-def build_task_title(task_type: str, scene_number: int) -> str:
-    mapping = {
-        "script": f"シーン{scene_number}: 台本作成",
-        "voice": f"シーン{scene_number}: 音声作成",
-        "voice_sub": None,          # 子タスクは title を個別判定
-        "background": f"シーン{scene_number}: 背景準備",
-        "background_sub": None,
-        "asset": f"シーン{scene_number}: 素材準備",
-        "asset_sub": None,
-        "edit": f"シーン{scene_number}: 編集",
-        "review": f"シーン{scene_number}: 確認",
+def build_task_title(task, scene_number: int, scene_title: str) -> str | None:
+    if task.task_type == "scene_group":
+        return f"シーン{scene_number}: {scene_title}"
+
+    # カテゴリ親と子は固定タイトル
+    fixed_titles = {
+        "voice": "音声",
+        "voice_sub": {
+            "台本を確定する": "台本を確定する",
+            "音声を生成する": "音声を生成する",
+            "音声を確認する": "音声を確認する",
+        },
+        "background": "背景",
+        "background_sub": {
+            "背景画像を探す": "背景画像を探す",
+            "背景画像を登録する": "背景画像を登録する",
+            "背景を適用する": "背景を適用する",
+        },
+        "asset": "素材",
+        "asset_sub": {
+            "メイン素材を探す": "メイン素材を探す",
+            "メイン素材を登録する": "メイン素材を登録する",
+        },
+        "edit": "編集",
+        "review": "確認",
     }
-    return mapping.get(task_type)
 
+    if task.task_type in ("voice", "background", "asset", "edit", "review"):
+        return fixed_titles[task.task_type]
 
-def build_child_task_title(old_title: str, scene_number: int) -> str:
-    """
-    既存タイトルの 'シーンX: ' 部分だけ差し替える
-    """
-    if ": " in old_title:
-        _, suffix = old_title.split(": ", 1)
-        return f"シーン{scene_number}: {suffix}"
-    return old_title
+    if task.task_type in ("voice_sub", "background_sub", "asset_sub"):
+        return task.title
+
+    return None
 
 
 def sync_task_titles_for_scene(db, scene) -> None:
-    """
-    scene.position をもとに、そのシーン配下タスクのタイトルを更新する
-    """
-    scene_number = scene.position + 1
     tasks = db.query(Task).filter(Task.scene_id == scene.id).all()
+    scene_number = scene.position + 1
 
     for task in tasks:
-        if task.parent_task_id is None:
-            new_title = build_task_title(task.task_type, scene_number)
-            if new_title:
-                task.title = new_title
-        else:
-            task.title = build_child_task_title(task.title, scene_number)
+        new_title = build_task_title(task, scene_number, scene.title)
+        if new_title:
+            task.title = new_title

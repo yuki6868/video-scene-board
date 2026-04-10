@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
-from app.services.task_sync import recalculate_parent_task_status
+from app.services.task_sync import (
+    recalculate_parent_task_status,
+    update_descendant_statuses,
+)
 from app.models.asset import Asset
 from app.models.task import Task
 from app.models.scene import Scene
@@ -62,6 +65,11 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
 
     for key, value in update_data.items():
         setattr(task, key, value)
+
+    if "status" in update_data:
+        children = db.query(Task).filter(Task.parent_task_id == task.id).all()
+        if children:
+            update_descendant_statuses(db, task.id, task.status)
 
     if task.asset_id is not None:
         asset = db.query(Asset).filter(Asset.id == task.asset_id).first()

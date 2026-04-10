@@ -812,38 +812,137 @@ function App() {
   }
 
   function buildTaskTree(tasks) {
-    const parentMap = {};
-    const childrenMap = {};
+    const taskMap = {};
+    const roots = [];
 
     tasks.forEach((task) => {
-      if (!task.parent_task_id) {
-        parentMap[task.id] = { ...task, children: [] };
+      taskMap[task.id] = {
+        ...task,
+        children: [],
+      };
+    });
+
+    tasks.forEach((task) => {
+      const current = taskMap[task.id];
+
+      if (task.parent_task_id && taskMap[task.parent_task_id]) {
+        taskMap[task.parent_task_id].children.push(current);
       } else {
-        if (!childrenMap[task.parent_task_id]) {
-          childrenMap[task.parent_task_id] = [];
-        }
-        childrenMap[task.parent_task_id].push(task);
+        roots.push(current);
       }
     });
 
-    Object.keys(parentMap).forEach((parentId) => {
-      parentMap[parentId].children = childrenMap[parentId] || [];
-    });
+    return roots;
+  }
 
-    return Object.values(parentMap);
+  function TaskTreeNode({
+    task,
+    expandedTaskIds,
+    toggleTaskExpanded,
+    handleUpdateTaskStatus,
+    scenes,
+  }) {
+    const relatedScene = scenes.find((scene) => scene.id === task.scene_id);
+    const hasChildren = task.children && task.children.length > 0;
+
+    return (
+      <div className={hasChildren ? "task-tree-node" : "task-child-card"}>
+        <div className={hasChildren ? "task-card-header" : "task-child-header"}>
+          <div className={hasChildren ? "task-title-row task-title-row-parent" : "task-child-title-wrap"}>
+            {hasChildren ? (
+              <button
+                type="button"
+                className="task-expand-button"
+                onClick={() => toggleTaskExpanded(task.id)}
+              >
+                {expandedTaskIds[task.id] ? "▼" : "▶"}
+              </button>
+            ) : (
+              <span className="task-child-bullet">•</span>
+            )}
+
+            <span className={hasChildren ? "" : "task-child-title"}>
+              {task.title}
+            </span>
+          </div>
+
+          <div className={hasChildren ? "task-badge-group" : "task-child-badges"}>
+            <span className={getPriorityClassName(task.priority)}>
+              優先度: {task.priority}
+            </span>
+            <span className={getTaskStatusClassName(task.status)}>
+              {task.status}
+            </span>
+          </div>
+        </div>
+
+        <div className="task-meta">
+          <span className="task-meta-item">
+            種別: {task.task_type || "未設定"}
+          </span>
+          <span className="task-meta-item">
+            対象:{" "}
+            {relatedScene
+              ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+              : "動画全体"}
+          </span>
+        </div>
+
+        <p className={hasChildren ? "task-detail" : "task-child-detail"}>
+          {task.detail || "詳細は未設定です。"}
+        </p>
+
+        <div className={hasChildren ? "task-actions task-group-actions" : "task-actions task-child-actions"}>
+          {task.status !== "未着手" && (
+            <button type="button" onClick={() => handleUpdateTaskStatus(task, "未着手")}>
+              未着手
+            </button>
+          )}
+          {task.status !== "作業中" && (
+            <button type="button" onClick={() => handleUpdateTaskStatus(task, "作業中")}>
+              作業中
+            </button>
+          )}
+          {task.status !== "完了" && (
+            <button type="button" onClick={() => handleUpdateTaskStatus(task, "完了")}>
+              完了
+            </button>
+          )}
+        </div>
+
+        {hasChildren && expandedTaskIds[task.id] && (
+          <div className="task-children">
+            {task.children.map((child) => (
+              <TaskTreeNode
+                key={child.id}
+                task={child}
+                expandedTaskIds={expandedTaskIds}
+                toggleTaskExpanded={toggleTaskExpanded}
+                handleUpdateTaskStatus={handleUpdateTaskStatus}
+                scenes={scenes}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   const taskTree = useMemo(() => {
     return buildTaskTree(sortTasksByPriority(tasks));
   }, [tasks]);
 
+  const sceneGroupTasks = useMemo(() => {
+    return taskTree.filter((task) => task.task_type === "scene_group");
+  }, [taskTree]);
+
   const taskColumns = useMemo(() => {
     return {
-      未着手: taskTree.filter((task) => task.status === "未着手"),
-      作業中: taskTree.filter((task) => task.status === "作業中"),
-      完了: taskTree.filter((task) => task.status === "完了"),
+      未着手: sceneGroupTasks.filter((task) => task.status === "未着手"),
+      作業中: sceneGroupTasks.filter((task) => task.status === "作業中"),
+      完了: sceneGroupTasks.filter((task) => task.status === "完了"),
     };
-  }, [taskTree]);
+  }, [sceneGroupTasks]);
 
   const resetSceneForm = () => {
     setSceneForm(initialSceneForm);
@@ -1427,47 +1526,14 @@ function App() {
                                     {expandedTaskIds[task.id] && (
                                       <div className="task-children">
                                         {task.children.map((child) => (
-                                          <div key={child.id} className="task-child-card">
-                                            <div className="task-child-header">
-                                              <div className="task-child-title-wrap">
-                                                <span className="task-child-bullet">•</span>
-                                                <span className="task-child-title">{child.title}</span>
-                                              </div>
-
-                                              <div className="task-child-badges">
-                                                <span className={getPriorityClassName(child.priority)}>
-                                                  優先度: {child.priority}
-                                                </span>
-                                                <span className={getTaskStatusClassName(child.status)}>
-                                                  {child.status}
-                                                </span>
-                                              </div>
-                                            </div>
-
-                                            <p className="task-child-detail">
-                                              {child.detail || "詳細は未設定です。"}
-                                            </p>
-
-                                            <div className="task-actions task-child-actions">
-                                              {child.status !== "未着手" && (
-                                                <button type="button" onClick={() => handleUpdateTaskStatus(child, "未着手")}>
-                                                  未着手
-                                                </button>
-                                              )}
-
-                                              {child.status !== "作業中" && (
-                                                <button type="button" onClick={() => handleUpdateTaskStatus(child, "作業中")}>
-                                                  作業中
-                                                </button>
-                                              )}
-
-                                              {child.status !== "完了" && (
-                                                <button type="button" onClick={() => handleUpdateTaskStatus(child, "完了")}>
-                                                  完了
-                                                </button>
-                                              )}
-                                            </div>
-                                          </div>
+                                          <TaskTreeNode
+                                            key={child.id}
+                                            task={child}
+                                            expandedTaskIds={expandedTaskIds}
+                                            toggleTaskExpanded={toggleTaskExpanded}
+                                            handleUpdateTaskStatus={handleUpdateTaskStatus}
+                                            scenes={scenes}
+                                          />
                                         ))}
                                       </div>
                                     )}
