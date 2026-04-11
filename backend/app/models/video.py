@@ -13,6 +13,12 @@ class Video(Base):
 
     thumbnail_url = Column(String, nullable=True)
     description = Column(Text, nullable=True)
+    tags = Column(String, nullable=True)
+    video_path = Column(String, nullable=True)
+    youtube_url = Column(String, nullable=True)
+    youtube_id = Column(String, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+
     concept = Column(String, nullable=True)
     target = Column(String, nullable=True)
     goal = Column(String, nullable=True)

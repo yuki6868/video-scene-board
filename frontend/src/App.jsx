@@ -59,7 +59,13 @@ const initialSceneForm = {
 
 const initialVideoForm = {
   title: "",
+  thumbnail_url: "",
   description: "",
+  tags: "",
+  video_path: "",
+  youtube_url: "",
+  youtube_id: "",
+  published_at: "",
   concept: "",
   target: "",
   goal: "",
@@ -423,6 +429,7 @@ function App() {
 
   const [editingAsset, setEditingAsset] = useState(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [editingVideoId, setEditingVideoId] = useState(null);
 
   const initialNewTask = {
     create_mode: "section",
@@ -454,8 +461,6 @@ function App() {
   const selectedVideo = useMemo(() => {
     return videos.find((video) => video.id === selectedVideoId) ?? null;
   }, [videos, selectedVideoId]);
-
-  const [editingVideoId, setEditingVideoId] = useState(null);
 
   const loadVideos = async () => {
     try {
@@ -1022,12 +1027,20 @@ function App() {
     if (!selectedVideo) return;
 
     setVideoForm({
-      title: selectedVideo.title,
+      title: selectedVideo.title || "",
+      thumbnail_url: selectedVideo.thumbnail_url || "",
       description: selectedVideo.description || "",
+      tags: selectedVideo.tags || "",
+      video_path: selectedVideo.video_path || "",
+      youtube_url: selectedVideo.youtube_url || "",
+      youtube_id: selectedVideo.youtube_id || "",
+      published_at: selectedVideo.published_at
+        ? String(selectedVideo.published_at).slice(0, 16)
+        : "",
       concept: selectedVideo.concept || "",
       target: selectedVideo.target || "",
       goal: selectedVideo.goal || "",
-      status: selectedVideo.status,
+      status: selectedVideo.status || "draft",
     });
 
     setEditingVideoId(selectedVideo.id);
@@ -1345,24 +1358,32 @@ function App() {
     }
   };
 
-  const handleVideoSubmit = async (e) => {
-    e.preventDefault();
-
+  const handleVideoSubmit = async () => {
     try {
-      if (editingVideoId === null) {
-        const created = await createVideo(videoForm);
-        await loadVideos();
-        setSelectedVideoId(created.id);
+      const payload = {
+        ...videoForm,
+        published_at: videoForm.published_at || null,
+        status: videoForm.status || "draft",
+      };
+
+      if (editingVideoId !== null) {
+        await updateVideo(editingVideoId, payload);
       } else {
-        await updateVideo(editingVideoId, videoForm);
-        await loadVideos();
+        await createVideo(payload);
       }
 
+      await loadVideos();
       closeVideoModal();
     } catch (error) {
-      console.error(error);
-      alert(error.message || "動画保存に失敗しました");
+      console.error("動画の保存に失敗しました", error);
+      alert(error.message || "動画の保存に失敗しました");
     }
+  };
+
+  const handleOpenCreateVideoModal = () => {
+    setEditingVideoId(null);
+    resetVideoForm();
+    setIsVideoModalOpen(true);
   };
 
   const handleDuplicateVideo = async () => {

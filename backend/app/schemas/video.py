@@ -12,34 +12,22 @@ class VideoBase(BaseModel):
     youtube_url: Optional[str] = None
     youtube_id: Optional[str] = None
     published_at: Optional[datetime] = None
-
-
-class VideoCreate(BaseModel):
-    title: str
-    description: str | None = None
     concept: Optional[str] = None
     target: Optional[str] = None
     goal: Optional[str] = None
     status: str = "draft"
 
 
-class VideoUpdate(BaseModel):
-    title: str
-    description: str | None = None
-    concept: str | None = None
-    target: str | None = None
-    goal: str | None = None
-    status: str
+class VideoCreate(VideoBase):
+    pass
 
 
-class VideoResponse(BaseModel):
+class VideoUpdate(VideoBase):
+    pass
+
+
+class VideoResponse(VideoBase):
     id: int
-    title: str
-    description: str | None
-    concept: str | None
-    target: str | None
-    goal: str | None
-    status: str
     created_at: datetime
     updated_at: datetime
 

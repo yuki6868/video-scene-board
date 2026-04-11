@@ -23,16 +23,26 @@ def column_exists(conn, table, column):
 
 def migrate_video_columns(engine):
     with engine.connect() as conn:
-        if not column_exists(conn, "videos", "thumbnail_url"):
-            conn.execute(text("ALTER TABLE videos ADD COLUMN thumbnail_url TEXT"))
-        if not column_exists(conn, "videos", "description"):
-            conn.execute(text("ALTER TABLE videos ADD COLUMN description TEXT"))
-        if not column_exists(conn, "videos", "tags"):
-            conn.execute(text("ALTER TABLE videos ADD COLUMN tags TEXT"))
-        conn.execute(text("ALTER TABLE videos ADD COLUMN video_path TEXT"))
-        conn.execute(text("ALTER TABLE videos ADD COLUMN youtube_url TEXT"))
-        conn.execute(text("ALTER TABLE videos ADD COLUMN youtube_id TEXT"))
-        conn.execute(text("ALTER TABLE videos ADD COLUMN published_at TEXT"))
+        columns_to_add = {
+            "thumbnail_url": "TEXT",
+            "description": "TEXT",
+            "tags": "TEXT",
+            "video_path": "TEXT",
+            "youtube_url": "TEXT",
+            "youtube_id": "TEXT",
+            "published_at": "TEXT",
+            "concept": "TEXT",
+            "target": "TEXT",
+            "goal": "TEXT",
+            "status": "VARCHAR(50) DEFAULT 'draft' NOT NULL",
+        }
+
+        for column_name, column_type in columns_to_add.items():
+            if not column_exists(conn, "videos", column_name):
+                conn.execute(
+                    text(f"ALTER TABLE videos ADD COLUMN {column_name} {column_type}")
+                )
+
         conn.commit()
 
 def migrate_task_parent_column(engine):

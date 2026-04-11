@@ -13,7 +13,13 @@ router = APIRouter(prefix="/videos", tags=["videos"])
 def create_video(video: VideoCreate, db: Session = Depends(get_db)):
     new_video = Video(
         title=video.title,
+        thumbnail_url=video.thumbnail_url,
         description=video.description,
+        tags=video.tags,
+        video_path=video.video_path,
+        youtube_url=video.youtube_url,
+        youtube_id=video.youtube_id,
+        published_at=video.published_at,
         concept=video.concept,
         target=video.target,
         goal=video.goal,
@@ -46,7 +52,13 @@ def update_video(video_id: int, video_data: VideoUpdate, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Video not found")
 
     video.title = video_data.title
+    video.thumbnail_url = video_data.thumbnail_url
     video.description = video_data.description
+    video.tags = video_data.tags
+    video.video_path = video_data.video_path
+    video.youtube_url = video_data.youtube_url
+    video.youtube_id = video_data.youtube_id
+    video.published_at = video_data.published_at
     video.concept = video_data.concept
     video.target = video_data.target
     video.goal = video_data.goal
@@ -65,7 +77,16 @@ def duplicate_video(video_id: int, db: Session = Depends(get_db)):
 
     duplicated_video = Video(
         title=f"{source_video.title}（複製）",
+        thumbnail_url=source_video.thumbnail_url,
         description=source_video.description,
+        tags=source_video.tags,
+        video_path=source_video.video_path,
+        youtube_url=source_video.youtube_url,
+        youtube_id=source_video.youtube_id,
+        published_at=source_video.published_at,
+        concept=source_video.concept,
+        target=source_video.target,
+        goal=source_video.goal,
         status="draft",
     )
     db.add(duplicated_video)
