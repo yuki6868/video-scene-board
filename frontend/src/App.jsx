@@ -1371,8 +1371,23 @@ function App() {
 
   const handleVideoSubmit = async () => {
     try {
+      if (!videoForm.title || !videoForm.title.trim()) {
+        alert("タイトルは必須です");
+        return;
+      }
+
       const payload = {
         ...videoForm,
+        title: videoForm.title.trim(),
+        description: videoForm.description?.trim() || "",
+        tags: videoForm.tags?.trim() || "",
+        thumbnail_url: videoForm.thumbnail_url?.trim() || "",
+        video_path: videoForm.video_path?.trim() || "",
+        youtube_url: videoForm.youtube_url?.trim() || "",
+        youtube_id: videoForm.youtube_id?.trim() || "",
+        concept: videoForm.concept?.trim() || "",
+        target: videoForm.target?.trim() || "",
+        goal: videoForm.goal?.trim() || "",
         published_at: videoForm.published_at || null,
         status: videoForm.status || "draft",
       };
