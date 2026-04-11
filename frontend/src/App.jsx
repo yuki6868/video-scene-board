@@ -1670,7 +1670,12 @@ function App() {
           {selectedVideo && (
             <div className="selected-video-summary">
               <div className="selected-video-main">
-                <div className="selected-video-thumbnail">
+                <div
+                  className="selected-video-thumbnail"
+                  style={{
+                    aspectRatio: `${selectedVideo.frame_width || 1080} / ${selectedVideo.frame_height || 1920}`,
+                  }}
+                >
                   {selectedVideo.thumbnail_url ? (
                     <img
                       src={buildFileUrl(selectedVideo.thumbnail_url)}
