@@ -1,4 +1,5 @@
 import SceneAssetSection from "../scene/SceneAssetSection";
+import ScenePreview from "../preview/ScenePreview";
 
 function buildFileUrl(path) {
   if (!path) return "";
@@ -39,6 +40,7 @@ export default function SceneModal({
   onVoiceFormChange,
   onGenerateVoice,
   onSelectVoiceAsset,
+  video,
 }) {
 
   const sceneTasks = (tasks ?? []).filter(
@@ -350,6 +352,8 @@ export default function SceneModal({
             loadTasks={loadTasks}
             onAssetUpdated={onAssetUpdated}
           />
+
+          <ScenePreview scene={form} video={video} />
 
           <div className="form-actions">
             <button type="button" className="submit-button" onClick={onSubmit}>

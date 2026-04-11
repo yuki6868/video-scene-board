@@ -2185,6 +2185,7 @@ function App() {
         onVoiceFormChange={handleVoiceFormChange}
         onGenerateVoice={handleGenerateVoice}
         onSelectVoiceAsset={handleSelectVoiceAsset}
+        video={selectedVideo}
       />
 
       <VideoModal
