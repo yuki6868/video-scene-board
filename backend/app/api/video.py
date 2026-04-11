@@ -5,6 +5,7 @@ from app.dependencies.db import get_db
 from app.models.video import Video
 from app.models.scene import Scene
 from app.schemas.video import VideoCreate, VideoResponse, VideoUpdate
+from app.services.davinci_export import export_davinci_manifest
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -113,6 +114,15 @@ def duplicate_video(video_id: int, db: Session = Depends(get_db)):
     db.refresh(duplicated_video)
 
     return duplicated_video
+
+
+@router.post("/{video_id}/export/davinci")
+def export_video_for_davinci(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    return export_davinci_manifest(db, video_id)
 
 
 @router.delete("/{video_id}")
