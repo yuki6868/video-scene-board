@@ -12,6 +12,7 @@ import shutil
 import zipfile
 import csv
 import xml.etree.ElementTree as ET
+import subprocess
 
 
 EXPORT_BASE_DIR = Path("exports")
@@ -179,6 +180,24 @@ def _safe_copy(src_path: str | None, dest_dir: Path, prefix: str) -> str | None:
 
     return dest_path.as_posix()
 
+def generate_bg_video(image_path: str, output_path: Path, duration: int = 5):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-loop", "1",
+        "-i", image_path,
+        "-t", str(duration),
+        "-vf", "scale=1920:1080,format=yuv420p",
+        "-r", "30",
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264",
+        str(output_path),
+    ]
+
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
     csv_path = export_dir / "scenes.csv"
 
@@ -227,6 +246,13 @@ def _seconds_to_fcpx_time(seconds: float, fps: int = 30) -> str:
     frames = max(1, int(round(seconds * fps)))
     return f"{frames}/{fps}s"
 
+def _is_supported_image_file(path_str: str | None) -> bool:
+    if not path_str:
+        return False
+
+    suffix = Path(path_str).suffix.lower()
+    return suffix in {".png", ".jpg", ".jpeg", ".webp"}
+
 
 def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     xml_path = export_dir / "timeline.fcpxml"
@@ -236,17 +262,14 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     total_seconds = 0
 
     for scene in manifest.get("scenes", []):
-        audio_path = scene.get("audio_path")
-        if not audio_path:
-            continue
-
         duration_seconds = scene.get("duration_seconds") or 5
         total_seconds += duration_seconds
 
         scene_assets.append(
             {
                 "title": scene.get("title") or "scene",
-                "audio_path": audio_path,
+                "audio_path": scene.get("audio_path"),
+                "bg_video_path": scene.get("bg_video_path"),
                 "duration_seconds": duration_seconds,
             }
         )
@@ -254,8 +277,8 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     total_duration = _seconds_to_fcpx_time(total_seconds or 1, fps=fps)
 
     fcpxml = ET.Element("fcpxml", version="1.11")
-
     resources = ET.SubElement(fcpxml, "resources")
+
     ET.SubElement(
         resources,
         "format",
@@ -267,24 +290,43 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         colorSpace="1-1-1 (Rec. 709)",
     )
 
-    for index, asset in enumerate(scene_assets, start=2):
-        asset_id = f"r{index}"
-        asset["asset_id"] = asset_id
+    resource_index = 2
 
-        ET.SubElement(
-            resources,
-            "asset",
-            id=asset_id,
-            name=asset["title"],
-            src=_to_file_uri(asset["audio_path"]),
-            start="0s",
-            duration=_seconds_to_fcpx_time(asset["duration_seconds"], fps=fps),
-            hasAudio="1",
-            hasVideo="0",
-            audioSources="1",
-            audioChannels="2",
-            audioRate="48k",
-        )
+    for scene in scene_assets:
+        # 背景動画
+        if scene["bg_video_path"]:
+            scene["bg_id"] = f"r{resource_index}"
+            resource_index += 1
+
+            ET.SubElement(
+                resources,
+                "asset",
+                id=scene["bg_id"],
+                name=f"{scene['title']}_bg",
+                src=_to_file_uri(scene["bg_video_path"]),
+                start="0s",
+                duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps),
+                hasVideo="1",
+                hasAudio="0",
+                format="r1",
+            )
+
+        # 音声
+        if scene["audio_path"]:
+            scene["audio_id"] = f"r{resource_index}"
+            resource_index += 1
+
+            ET.SubElement(
+                resources,
+                "asset",
+                id=scene["audio_id"],
+                name=f"{scene['title']}_audio",
+                src=_to_file_uri(scene["audio_path"]),
+                start="0s",
+                duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps),
+                hasAudio="1",
+                hasVideo="0",
+            )
 
     library = ET.SubElement(fcpxml, "library")
     event = ET.SubElement(library, "event", name="Exported Event")
@@ -295,31 +337,201 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         "sequence",
         format="r1",
         duration=total_duration,
-        tcStart="0s",
-        tcFormat="NDF",
-        audioLayout="stereo",
-        audioRate="48k",
     )
 
     spine = ET.SubElement(sequence, "spine")
 
     current_seconds = 0
-    for asset in scene_assets:
-        ET.SubElement(
-            spine,
-            "asset-clip",
-            name=asset["title"],
-            ref=asset["asset_id"],
-            offset=_seconds_to_fcpx_time(current_seconds, fps=fps),
-            duration=_seconds_to_fcpx_time(asset["duration_seconds"], fps=fps),
-            start="0s",
-        )
-        current_seconds += asset["duration_seconds"]
 
-    tree = ET.ElementTree(fcpxml)
-    tree.write(xml_path, encoding="utf-8", xml_declaration=True)
+    for scene in scene_assets:
+        offset = _seconds_to_fcpx_time(current_seconds, fps)
+        duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps)
+
+        # 背景動画
+        if scene.get("bg_id"):
+            ET.SubElement(
+                spine,
+                "asset-clip",
+                name=scene["title"],
+                ref=scene["bg_id"],
+                offset=offset,
+                duration=duration,
+                start="0s",
+            )
+
+        # 音声（別トラック）
+        if scene.get("audio_id"):
+            ET.SubElement(
+                spine,
+                "asset-clip",
+                name=scene["title"],
+                ref=scene["audio_id"],
+                offset=offset,
+                duration=duration,
+                start="0s",
+                lane="-1",
+            )
+
+        current_seconds += scene["duration_seconds"]
+
+    ET.ElementTree(fcpxml).write(xml_path, encoding="utf-8", xml_declaration=True)
 
     return xml_path.as_posix()
+
+# def create_fcpxml(manifest: dict, export_dir: Path) -> str:
+#     xml_path = export_dir / "timeline.fcpxml"
+
+#     fps = 30
+#     scene_assets = []
+#     total_seconds = 0
+
+#     for scene in manifest.get("scenes", []):
+#         duration_seconds = scene.get("duration_seconds") or 5
+#         title = scene.get("title") or "scene"
+#         audio_path = scene.get("audio_path")
+#         background_path = scene.get("background_path")
+
+#         total_seconds += duration_seconds
+
+#         scene_assets.append(
+#             {
+#                 "title": title,
+#                 "audio_path": audio_path,
+#                 "background_path": background_path,
+#                 "duration_seconds": duration_seconds,
+#             }
+#         )
+
+#     total_duration = _seconds_to_fcpx_time(total_seconds or 1, fps=fps)
+
+#     fcpxml = ET.Element("fcpxml", version="1.11")
+
+#     resources = ET.SubElement(fcpxml, "resources")
+#     ET.SubElement(
+#         resources,
+#         "format",
+#         id="r1",
+#         name="FFVideoFormat1080p30",
+#         frameDuration="1/30s",
+#         width="1920",
+#         height="1080",
+#         colorSpace="1-1-1 (Rec. 709)",
+#     )
+
+#     resource_index = 2
+
+#     for scene in scene_assets:
+#         audio_path = scene.get("audio_path")
+#         background_path = scene.get("background_path")
+
+#         scene["audio_asset_id"] = None
+#         scene["bg_asset_id"] = None
+
+#         if audio_path:
+#             audio_asset_id = f"r{resource_index}"
+#             resource_index += 1
+
+#             ET.SubElement(
+#                 resources,
+#                 "asset",
+#                 id=audio_asset_id,
+#                 name=f"{scene['title']}_audio",
+#                 src=_to_file_uri(audio_path),
+#                 start="0s",
+#                 duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps=fps),
+#                 hasAudio="1",
+#                 hasVideo="0",
+#                 audioSources="1",
+#                 audioChannels="2",
+#                 audioRate="48k",
+#             )
+
+#             scene["audio_asset_id"] = audio_asset_id
+
+#         if background_path and _is_supported_image_file(background_path):
+#             bg_asset_id = f"r{resource_index}"
+#             resource_index += 1
+
+#             ET.SubElement(
+#                 resources,
+#                 "asset",
+#                 id=bg_asset_id,
+#                 name=f"{scene['title']}_bg",
+#                 src=_to_file_uri(background_path),
+#                 start="0s",
+#                 duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps=fps),
+#                 hasAudio="0",
+#                 hasVideo="1",
+#                 format="r1",
+#             )
+
+#             scene["bg_asset_id"] = bg_asset_id
+
+#     library = ET.SubElement(fcpxml, "library")
+#     event = ET.SubElement(library, "event", name="Exported Event")
+#     project = ET.SubElement(event, "project", name="Auto Timeline")
+
+#     sequence = ET.SubElement(
+#         project,
+#         "sequence",
+#         format="r1",
+#         duration=total_duration,
+#         tcStart="0s",
+#         tcFormat="NDF",
+#         audioLayout="stereo",
+#         audioRate="48k",
+#     )
+
+#     spine = ET.SubElement(sequence, "spine")
+
+#     current_seconds = 0
+
+#     for scene in scene_assets:
+#         offset = _seconds_to_fcpx_time(current_seconds, fps=fps)
+#         duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps=fps)
+
+#         # 背景を親クリップにする
+#         if scene["bg_asset_id"]:
+#             bg_clip = ET.SubElement(
+#                 spine,
+#                 "asset-clip",
+#                 name=f"{scene['title']}_bg",
+#                 ref=scene["bg_asset_id"],
+#                 offset=offset,
+#                 duration=duration,
+#                 start="0s",
+#             )
+
+#             if scene["audio_asset_id"]:
+#                 ET.SubElement(
+#                     bg_clip,
+#                     "asset-clip",
+#                     name=f"{scene['title']}_audio",
+#                     ref=scene["audio_asset_id"],
+#                     offset="0s",
+#                     duration=duration,
+#                     start="0s",
+#                     lane="-1",
+#                 )
+
+#         # 背景がない場合は音声だけ置く
+#         elif scene["audio_asset_id"]:
+#             ET.SubElement(
+#                 spine,
+#                 "asset-clip",
+#                 name=scene["title"],
+#                 ref=scene["audio_asset_id"],
+#                 offset=offset,
+#                 duration=duration,
+#                 start="0s",
+#             )
+
+#         current_seconds += scene["duration_seconds"]
+
+#     tree = ET.ElementTree(fcpxml)
+#     tree.write(xml_path, encoding="utf-8", xml_declaration=True)
+
+#     return xml_path.as_posix()
 
 def export_davinci_manifest(db: Session, video_id: int) -> dict:
     manifest = build_davinci_manifest(db, video_id)
@@ -366,6 +578,25 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
             missing_files.append(path)
 
         asset["path_or_url"] = copied
+    
+    # --- background動画生成 ---
+    rendered_bg_dir = export_dir / "rendered_bg"
+
+    for scene in manifest["scenes"]:
+        bg_path = scene.get("background_path")
+
+        if not bg_path:
+            continue
+
+        duration = scene.get("duration_seconds") or 5
+
+        output_path = rendered_bg_dir / f"scene_{scene['scene_id']}_bg.mp4"
+
+        try:
+            generate_bg_video(bg_path, output_path, duration)
+            scene["bg_video_path"] = output_path.as_posix()
+        except Exception:
+            scene["bg_video_path"] = None
 
     # --- voice assets ---
     for voice in manifest["voice_assets"]:
