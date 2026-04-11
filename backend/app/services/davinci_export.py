@@ -224,7 +224,7 @@ def _safe_copy(src_path: str | None, dest_dir: Path, prefix: str) -> str | None:
 
     return dest_path.as_posix()
 
-def generate_bg_video(image_path: str, output_path: Path, duration: int = 5):
+def generate_bg_video(image_path: str, output_path: Path, duration: int, width: int, height: int):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = [
@@ -233,10 +233,9 @@ def generate_bg_video(image_path: str, output_path: Path, duration: int = 5):
         "-loop", "1",
         "-i", image_path,
         "-t", str(duration),
-        "-vf", "scale=1920:1080,format=yuv420p",
+        "-vf", f"scale={width}:{height},format=yuv420p",
         "-r", "30",
         "-pix_fmt", "yuv420p",
-        "-c:v", "libx264",
         str(output_path),
     ]
 
@@ -268,7 +267,7 @@ def generate_telop_image(text: str, output_path: Path):
 
     img.save(output_path)
 
-def generate_telop_video(image_path: str, output_path: Path, duration: int):
+def generate_telop_video(image_path: str, output_path: Path, duration: int, width: int, height: int):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     mov_output = output_path.with_suffix(".mov")
@@ -279,11 +278,10 @@ def generate_telop_video(image_path: str, output_path: Path, duration: int):
         "-loop", "1",
         "-i", image_path,
         "-t", str(duration),
+        "-vf", f"scale={width}:{height},format=yuv420p",
         "-r", "30",
-        "-c:v", "prores_ks",
-        "-profile:v", "4444",
-        "-pix_fmt", "yuva444p10le",
-        str(mov_output),
+        "-pix_fmt", "yuv420p",
+        str(output_path),
     ]
 
     subprocess.run(
@@ -693,6 +691,10 @@ def export_davinci_manifest(db: Session, video_id: int, export_name: str | None 
     assets_dir.mkdir(parents=True, exist_ok=True)
     audio_dir.mkdir(parents=True, exist_ok=True)
 
+    video = db.query(Video).filter(Video.id == video_id).first()
+    width = video.frame_width
+    height = video.frame_height
+
     missing_files = []
 
     # --- scenes ---
@@ -742,7 +744,7 @@ def export_davinci_manifest(db: Session, video_id: int, export_name: str | None 
         output_path = rendered_bg_dir / f"scene_{scene['scene_id']}_bg.mp4"
 
         try:
-            generate_bg_video(bg_path, output_path, duration)
+            generate_bg_video(bg_path, output_path, duration, width, height)
             scene["bg_video_path"] = output_path.as_posix()
         except Exception:
             scene["bg_video_path"] = None
@@ -771,7 +773,7 @@ def export_davinci_manifest(db: Session, video_id: int, export_name: str | None 
                 )
 
                 if copied_subtitle:
-                    generated_path = generate_telop_video(copied_subtitle, video_path, duration)
+                    generated_path = generate_telop_video(copied_subtitle, video_path, duration, width, height)
                     scene["telop_video_path"] = generated_path
                     continue
                 else:
@@ -779,7 +781,7 @@ def export_davinci_manifest(db: Session, video_id: int, export_name: str | None 
 
             if text:
                 generate_telop_image(text, img_path)
-                generated_path = generate_telop_video(str(img_path), video_path, duration)
+                generated_path = generate_telop_video(str(img_path), video_path, duration, width, height)
                 scene["telop_video_path"] = generated_path
 
         except Exception:
