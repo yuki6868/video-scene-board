@@ -298,6 +298,15 @@ export default function SceneModal({
             value={form.background_path || ""}
             onChange={onChange}
           />
+
+          <select
+            name="background_fit_mode"
+            value={form.background_fit_mode || "cover"}
+            onChange={onChange}
+          >
+            <option value="cover">背景表示: cover（全画面・中央トリミング）</option>
+            <option value="blur">背景表示: blur（ぼかし背景＋中央表示）</option>
+          </select>
           {form.background_path && (
             <div className="scene-image-preview">
               <p className="scene-image-preview-label">背景プレビュー</p>

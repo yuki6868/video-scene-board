@@ -15,6 +15,7 @@ class SceneCreate(BaseModel):
     character_name: str | None = None
     character_expression: str | None = None
     background_path: str | None = None
+    background_fit_mode: str = "cover"
     se_path: str | None = None
     telop: str | None = None
     direction: str | None = None
@@ -34,6 +35,7 @@ class SceneUpdate(BaseModel):
     character_name: str | None = None
     character_expression: str | None = None
     background_path: str | None = None
+    background_fit_mode: str = "cover"
     se_path: str | None = None
     telop: str | None = None
     direction: str | None = None
@@ -60,6 +62,7 @@ class SceneResponse(BaseModel):
     character_name: str | None
     character_expression: str | None
     background_path: str | None
+    background_fit_mode: str
     se_path: str | None
     telop: str | None
     direction: str | None

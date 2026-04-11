@@ -117,6 +117,7 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
                 "character_name": scene.character_name,
                 "character_expression": scene.character_expression,
                 "background_path": _to_posix_path(scene.background_path),
+                "background_fit_mode": scene.background_fit_mode or "cover",
                 "se_path": _to_posix_path(scene.se_path),
                 "audio_path": _to_posix_path(
                     selected_voice.audio_path if selected_voice else scene.audio_path
@@ -194,6 +195,9 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
             "target": video.target,
             "goal": video.goal,
             "status": video.status,
+            "aspect_ratio": getattr(video, "aspect_ratio", "9:16"),
+            "frame_width": getattr(video, "frame_width", 1080),
+            "frame_height": getattr(video, "frame_height", 1920),
             "created_at": video.created_at.isoformat() if video.created_at else None,
             "updated_at": video.updated_at.isoformat() if video.updated_at else None,
         },
@@ -224,8 +228,31 @@ def _safe_copy(src_path: str | None, dest_dir: Path, prefix: str) -> str | None:
 
     return dest_path.as_posix()
 
-def generate_bg_video(image_path: str, output_path: Path, duration: int, width: int, height: int):
+def generate_bg_video(
+    image_path: str,
+    output_path: Path,
+    duration: int = 5,
+    width: int = 1080,
+    height: int = 1920,
+    fit_mode: str = "cover",
+):
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fit_mode = (fit_mode or "cover").lower()
+
+    if fit_mode == "blur":
+        vf = (
+            f"split=2[bg][fg];"
+            f"[bg]scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},boxblur=30:10[bgblur];"
+            f"[fg]scale={width}:{height}:force_original_aspect_ratio=decrease[fgfit];"
+            f"[bgblur][fgfit]overlay=(W-w)/2:(H-h)/2,format=yuv420p"
+        )
+    else:
+        vf = (
+            f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},format=yuv420p"
+        )
 
     cmd = [
         "ffmpeg",
@@ -233,36 +260,48 @@ def generate_bg_video(image_path: str, output_path: Path, duration: int, width: 
         "-loop", "1",
         "-i", image_path,
         "-t", str(duration),
-        "-vf", f"scale={width}:{height},format=yuv420p",
+        "-vf", vf,
         "-r", "30",
         "-pix_fmt", "yuv420p",
+        "-c:v", "libx264",
         str(output_path),
     ]
 
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
 
-def generate_telop_image(text: str, output_path: Path):
+def generate_telop_image(text: str, output_path: Path, width: int = 1080, height: int = 1920):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    img = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
+    font_size = max(40, width // 13)
+
     try:
-        font = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc", 80)
-    except:
+        font = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc", font_size)
+    except Exception:
         font = ImageFont.load_default()
 
-    text_width, text_height = draw.textsize(text, font=font)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
 
-    x = (1920 - text_width) // 2
-    y = 800
+    x = (width - text_width) // 2
+    y = int(height * 0.78)
 
-    # 黒縁
-    for dx in [-3, 3]:
-        for dy in [-3, 3]:
-            draw.text((x+dx, y+dy), text, font=font, fill=(0, 0, 0, 255))
+    outline = max(2, font_size // 18)
 
-    # 本体
+    for dx in range(-outline, outline + 1):
+        for dy in range(-outline, outline + 1):
+            if dx == 0 and dy == 0:
+                continue
+            draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0, 255))
+
     draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
 
     img.save(output_path)
@@ -278,10 +317,12 @@ def generate_telop_video(image_path: str, output_path: Path, duration: int, widt
         "-loop", "1",
         "-i", image_path,
         "-t", str(duration),
-        "-vf", f"scale={width}:{height},format=yuv420p",
+        "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black@0.0",
         "-r", "30",
-        "-pix_fmt", "yuv420p",
-        str(output_path),
+        "-c:v", "prores_ks",
+        "-profile:v", "4444",
+        "-pix_fmt", "yuva444p10le",
+        str(mov_output),
     ]
 
     subprocess.run(
@@ -366,6 +407,10 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     xml_path = export_dir / "timeline.fcpxml"
 
     fps = 30
+    video_info = manifest.get("video", {})
+    width = int(video_info.get("frame_width") or 1080)
+    height = int(video_info.get("frame_height") or 1920)
+
     scene_assets = []
     total_seconds = 0
 
@@ -392,10 +437,10 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         resources,
         "format",
         id="r1",
-        name="FFVideoFormat1080p30",
+        name="CustomFormat",
         frameDuration="1/30s",
-        width="1920",
-        height="1080",
+        width=str(width),
+        height=str(height),
         colorSpace="1-1-1 (Rec. 709)",
     )
 
@@ -683,6 +728,10 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 def export_davinci_manifest(db: Session, video_id: int, export_name: str | None = None) -> dict:
     manifest = build_davinci_manifest(db, video_id)
 
+    video_info = manifest.get("video", {})
+    width = int(video_info.get("frame_width") or 1080)
+    height = int(video_info.get("frame_height") or 1920)
+
     export_dir = _build_export_dir(video_id, export_name)
     assets_dir = export_dir / "assets"
     audio_dir = export_dir / "audio"
@@ -740,11 +789,19 @@ def export_davinci_manifest(db: Session, video_id: int, export_name: str | None 
             continue
 
         duration = scene.get("duration_seconds") or 5
+        fit_mode = scene.get("background_fit_mode") or "cover"
 
         output_path = rendered_bg_dir / f"scene_{scene['scene_id']}_bg.mp4"
 
         try:
-            generate_bg_video(bg_path, output_path, duration, width, height)
+            generate_bg_video(
+                bg_path,
+                output_path,
+                duration,
+                width=width,
+                height=height,
+                fit_mode=fit_mode,
+            )
             scene["bg_video_path"] = output_path.as_posix()
         except Exception:
             scene["bg_video_path"] = None

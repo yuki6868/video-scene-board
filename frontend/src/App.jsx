@@ -51,6 +51,7 @@ const initialSceneForm = {
   character_name: "",
   character_expression: "",
   background_path: "",
+  background_fit_mode: "cover",
   se_path: "",
 
   telop: "",
@@ -547,6 +548,7 @@ function App() {
     character_name: form.character_name,
     character_expression: form.character_expression,
     background_path: form.background_path,
+    background_fit_mode: form.background_fit_mode,
     se_path: form.se_path,
     telop: form.telop,
     direction: form.direction,
@@ -570,6 +572,7 @@ function App() {
       payload.character_name !== (scene.character_name || "") ||
       payload.character_expression !== (scene.character_expression || "") ||
       payload.background_path !== (scene.background_path || "") ||
+      payload.background_fit_mode !== (scene.background_fit_mode || "cover") ||
       payload.se_path !== (scene.se_path || "") ||
       payload.telop !== (scene.telop || "") ||
       payload.direction !== (scene.direction || "") ||
@@ -742,6 +745,7 @@ function App() {
             character_name: matchedScene.character_name || "",
             character_expression: matchedScene.character_expression || "",
             background_path: matchedScene.background_path || "",
+            background_fit_mode: matchedScene.background_fit_mode || "cover",
             se_path: matchedScene.se_path || "",
             telop: matchedScene.telop || "",
             direction: matchedScene.direction || "",
@@ -1374,6 +1378,7 @@ function App() {
             character_name: matchedScene.character_name || "",
             character_expression: matchedScene.character_expression || "",
             background_path: matchedScene.background_path || "",
+            background_fit_mode: matchedScene.background_fit_mode || "cover",
             se_path: matchedScene.se_path || "",
             telop: matchedScene.telop || "",
             direction: matchedScene.direction || "",

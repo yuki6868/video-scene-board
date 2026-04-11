@@ -65,6 +65,7 @@ def migrate_scene_columns():
             "ALTER TABLE scenes ADD COLUMN character_name VARCHAR(255)",
             "ALTER TABLE scenes ADD COLUMN character_expression VARCHAR(255)",
             "ALTER TABLE scenes ADD COLUMN background_path VARCHAR(500)",
+            "ALTER TABLE scenes ADD COLUMN background_fit_mode VARCHAR(50) DEFAULT 'cover' NOT NULL",
             "ALTER TABLE scenes ADD COLUMN se_path VARCHAR(500)",
             "ALTER TABLE scenes ADD COLUMN telop TEXT",
             "ALTER TABLE scenes ADD COLUMN direction TEXT",

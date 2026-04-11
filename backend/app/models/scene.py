@@ -25,6 +25,7 @@ class Scene(Base):
     character_name = Column(String(255), nullable=True)
     character_expression = Column(String(255), nullable=True)
     background_path = Column(String(500), nullable=True)
+    background_fit_mode = Column(String(50), nullable=False, default="cover")
     se_path = Column(String(500), nullable=True)
 
     telop = Column(Text, nullable=True)
