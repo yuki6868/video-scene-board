@@ -10,6 +10,7 @@ from app.models.voice_asset import VoiceAsset
 
 import shutil
 import zipfile
+import csv
 
 
 EXPORT_BASE_DIR = Path("exports")
@@ -177,6 +178,46 @@ def _safe_copy(src_path: str | None, dest_dir: Path, prefix: str) -> str | None:
 
     return dest_path.as_posix()
 
+def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
+    csv_path = export_dir / "scenes.csv"
+
+    fieldnames = [
+        "scene_id",
+        "position",
+        "title",
+        "status",
+        "section_type",
+        "duration_seconds",
+        "background_path",
+        "audio_path",
+        "se_path",
+        "script",
+        "telop",
+    ]
+
+    with csv_path.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for scene in manifest.get("scenes", []):
+            writer.writerow(
+                {
+                    "scene_id": scene.get("scene_id"),
+                    "position": scene.get("position"),
+                    "title": scene.get("title"),
+                    "status": scene.get("status"),
+                    "section_type": scene.get("section_type"),
+                    "duration_seconds": scene.get("duration_seconds"),
+                    "background_path": scene.get("background_path"),
+                    "audio_path": scene.get("audio_path"),
+                    "se_path": scene.get("se_path"),
+                    "script": scene.get("script"),
+                    "telop": scene.get("telop"),
+                }
+            )
+
+    return csv_path.as_posix()
+
 def export_davinci_manifest(db: Session, video_id: int) -> dict:
     manifest = build_davinci_manifest(db, video_id)
 
@@ -236,6 +277,9 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
     # missing追加
     manifest["missing_files"] = missing_files
 
+    csv_path = create_davinci_scenes_csv(manifest, export_dir)
+    manifest["scenes_csv_path"] = csv_path
+
     # 保存
     manifest_path = export_dir / "manifest.json"
 
@@ -247,6 +291,7 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
         "video_id": video_id,
         "export_dir": export_dir.as_posix(),
         "manifest_path": manifest_path.as_posix(),
+        "csv_path": csv_path,
         "missing_files": missing_files,
     }
 
