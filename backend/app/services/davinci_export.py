@@ -13,6 +13,7 @@ import zipfile
 import csv
 import xml.etree.ElementTree as ET
 import subprocess
+from PIL import Image, ImageDraw, ImageFont
 
 
 EXPORT_BASE_DIR = Path("exports")
@@ -198,6 +199,59 @@ def generate_bg_video(image_path: str, output_path: Path, duration: int = 5):
 
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+def generate_telop_image(text: str, output_path: Path):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    img = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc", 80)
+    except:
+        font = ImageFont.load_default()
+
+    text_width, text_height = draw.textsize(text, font=font)
+
+    x = (1920 - text_width) // 2
+    y = 800
+
+    # 黒縁
+    for dx in [-3, 3]:
+        for dy in [-3, 3]:
+            draw.text((x+dx, y+dy), text, font=font, fill=(0, 0, 0, 255))
+
+    # 本体
+    draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
+
+    img.save(output_path)
+
+def generate_telop_video(image_path: str, output_path: Path, duration: int):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    mov_output = output_path.with_suffix(".mov")
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-loop", "1",
+        "-i", image_path,
+        "-t", str(duration),
+        "-r", "30",
+        "-c:v", "prores_ks",
+        "-profile:v", "4444",
+        "-pix_fmt", "yuva444p10le",
+        str(mov_output),
+    ]
+
+    subprocess.run(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
+
+    return mov_output.as_posix()
+
 def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
     csv_path = export_dir / "scenes.csv"
 
@@ -270,11 +324,12 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 "title": scene.get("title") or "scene",
                 "audio_path": scene.get("audio_path"),
                 "bg_video_path": scene.get("bg_video_path"),
+                "telop_video_path": scene.get("telop_video_path"),
                 "duration_seconds": duration_seconds,
             }
         )
 
-    total_duration = _seconds_to_fcpx_time(total_seconds or 1, fps=fps)
+    total_duration = _seconds_to_fcpx_time(total_seconds or 1, fps)
 
     fcpxml = ET.Element("fcpxml", version="1.11")
     resources = ET.SubElement(fcpxml, "resources")
@@ -293,8 +348,13 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     resource_index = 2
 
     for scene in scene_assets:
-        # 背景動画
-        if scene["bg_video_path"]:
+        duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps)
+
+        scene["bg_id"] = None
+        scene["audio_id"] = None
+        scene["telop_id"] = None
+
+        if scene.get("bg_video_path"):
             scene["bg_id"] = f"r{resource_index}"
             resource_index += 1
 
@@ -305,14 +365,13 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 name=f"{scene['title']}_bg",
                 src=_to_file_uri(scene["bg_video_path"]),
                 start="0s",
-                duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps),
+                duration=duration,
                 hasVideo="1",
                 hasAudio="0",
                 format="r1",
             )
 
-        # 音声
-        if scene["audio_path"]:
+        if scene.get("audio_path"):
             scene["audio_id"] = f"r{resource_index}"
             resource_index += 1
 
@@ -323,9 +382,29 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 name=f"{scene['title']}_audio",
                 src=_to_file_uri(scene["audio_path"]),
                 start="0s",
-                duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps),
-                hasAudio="1",
+                duration=duration,
                 hasVideo="0",
+                hasAudio="1",
+                audioSources="1",
+                audioChannels="2",
+                audioRate="48k",
+            )
+
+        if scene.get("telop_video_path"):
+            scene["telop_id"] = f"r{resource_index}"
+            resource_index += 1
+
+            ET.SubElement(
+                resources,
+                "asset",
+                id=scene["telop_id"],
+                name=f"{scene['title']}_telop",
+                src=_to_file_uri(scene["telop_video_path"]),
+                start="0s",
+                duration=duration,
+                hasVideo="1",
+                hasAudio="0",
+                format="r1",
             )
 
     library = ET.SubElement(fcpxml, "library")
@@ -337,6 +416,10 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         "sequence",
         format="r1",
         duration=total_duration,
+        tcStart="0s",
+        tcFormat="NDF",
+        audioLayout="stereo",
+        audioRate="48k",
     )
 
     spine = ET.SubElement(sequence, "spine")
@@ -347,29 +430,39 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         offset = _seconds_to_fcpx_time(current_seconds, fps)
         duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps)
 
-        # 背景動画
         if scene.get("bg_id"):
             ET.SubElement(
                 spine,
                 "asset-clip",
-                name=scene["title"],
+                name=f"{scene['title']}_bg",
                 ref=scene["bg_id"],
                 offset=offset,
                 duration=duration,
                 start="0s",
             )
 
-        # 音声（別トラック）
         if scene.get("audio_id"):
             ET.SubElement(
                 spine,
                 "asset-clip",
-                name=scene["title"],
+                name=f"{scene['title']}_audio",
                 ref=scene["audio_id"],
                 offset=offset,
                 duration=duration,
                 start="0s",
                 lane="-1",
+            )
+
+        if scene.get("telop_id"):
+            ET.SubElement(
+                spine,
+                "asset-clip",
+                name=f"{scene['title']}_telop",
+                ref=scene["telop_id"],
+                offset=offset,
+                duration=duration,
+                start="0s",
+                lane="1",
             )
 
         current_seconds += scene["duration_seconds"]
@@ -438,7 +531,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 #                 name=f"{scene['title']}_audio",
 #                 src=_to_file_uri(audio_path),
 #                 start="0s",
-#                 duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps=fps),
+#                 duration=_seconds_to_fcpx_time(scene.get("duration_seconds") or 5, fps=fps),
 #                 hasAudio="1",
 #                 hasVideo="0",
 #                 audioSources="1",
@@ -459,7 +552,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 #                 name=f"{scene['title']}_bg",
 #                 src=_to_file_uri(background_path),
 #                 start="0s",
-#                 duration=_seconds_to_fcpx_time(scene["duration_seconds"], fps=fps),
+#                 duration=_seconds_to_fcpx_time(scene.get("duration_seconds") or 5, fps=fps),
 #                 hasAudio="0",
 #                 hasVideo="1",
 #                 format="r1",
@@ -488,7 +581,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 
 #     for scene in scene_assets:
 #         offset = _seconds_to_fcpx_time(current_seconds, fps=fps)
-#         duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps=fps)
+#         duration = _seconds_to_fcpx_time(scene.get("duration_seconds") or 5, fps=fps)
 
 #         # 背景を親クリップにする
 #         if scene["bg_asset_id"]:
@@ -526,7 +619,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 #                 start="0s",
 #             )
 
-#         current_seconds += scene["duration_seconds"]
+#         current_seconds += scene.get("duration_seconds") or 5
 
 #     tree = ET.ElementTree(fcpxml)
 #     tree.write(xml_path, encoding="utf-8", xml_declaration=True)
@@ -598,6 +691,46 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
         except Exception:
             scene["bg_video_path"] = None
 
+    # --- テロップ生成 ---
+    rendered_telop_dir = export_dir / "rendered_telop"
+
+    for scene in manifest["scenes"]:
+        duration = scene.get("duration_seconds") or 5
+
+        selected_voice = scene.get("selected_voice_asset") or {}
+        subtitle_png_path = selected_voice.get("subtitle_png_path")
+        text = scene.get("telop")
+
+        img_path = rendered_telop_dir / f"scene_{scene['scene_id']}_telop.png"
+        video_path = rendered_telop_dir / f"scene_{scene['scene_id']}_telop.mp4"
+
+        scene["telop_video_path"] = None
+
+        try:
+            # まずは音声生成時に作った字幕PNGを優先利用
+            if subtitle_png_path:
+                copied_subtitle = _safe_copy(
+                    subtitle_png_path,
+                    rendered_telop_dir,
+                    f"scene_{scene['scene_id']}_subtitle"
+                )
+
+                if copied_subtitle:
+                    generated_path = generate_telop_video(copied_subtitle, video_path, duration)
+                    scene["telop_video_path"] = generated_path
+                    continue
+                else:
+                    missing_files.append(subtitle_png_path)
+
+            # 字幕PNGがない場合のみ、従来どおり telop テキストから生成
+            if text:
+                generate_telop_image(text, img_path)
+                generated_path = generate_telop_video(str(img_path), video_path, duration)
+                scene["telop_video_path"] = generated_path
+
+        except Exception:
+            scene["telop_video_path"] = None
+
     # --- voice assets ---
     for voice in manifest["voice_assets"]:
         audio = voice.get("audio_path")
@@ -607,6 +740,18 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
             missing_files.append(audio)
 
         voice["audio_path"] = copied_audio
+
+        subtitle_png = voice.get("subtitle_png_path")
+        copied_subtitle_png = _safe_copy(
+            subtitle_png,
+            export_dir / "subtitles",
+            f"voice_{voice['voice_asset_id']}_subtitle"
+        )
+
+        if subtitle_png and not copied_subtitle_png:
+            missing_files.append(subtitle_png)
+
+        voice["subtitle_png_path"] = copied_subtitle_png
 
     # missing追加
     manifest["missing_files"] = missing_files
