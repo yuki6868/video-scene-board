@@ -8,6 +8,8 @@ from app.models.scene import Scene
 from app.models.video import Video
 from app.models.voice_asset import VoiceAsset
 
+import shutil
+
 
 EXPORT_BASE_DIR = Path("exports")
 
@@ -157,22 +159,92 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
 
     return manifest
 
+def _safe_copy(src_path: str | None, dest_dir: Path, prefix: str) -> str | None:
+    if not src_path:
+        return None
+
+    src = Path(src_path)
+
+    if not src.exists():
+        return None
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    dest_path = dest_dir / f"{prefix}_{src.name}"
+
+    shutil.copy2(src, dest_path)
+
+    return dest_path.as_posix()
 
 def export_davinci_manifest(db: Session, video_id: int) -> dict:
     manifest = build_davinci_manifest(db, video_id)
 
     export_dir = EXPORT_BASE_DIR / f"video_{video_id}"
-    export_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir = export_dir / "assets"
+    audio_dir = export_dir / "audio"
 
+    export_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    missing_files = []
+
+    # --- scenes ---
+    for scene in manifest["scenes"]:
+        # 背景
+        bg = scene.get("background_path")
+        copied_bg = _safe_copy(bg, assets_dir, f"scene_{scene['scene_id']}_bg")
+        if bg and not copied_bg:
+            missing_files.append(bg)
+        scene["background_path"] = copied_bg
+
+        # SE
+        se = scene.get("se_path")
+        copied_se = _safe_copy(se, audio_dir, f"scene_{scene['scene_id']}_se")
+        if se and not copied_se:
+            missing_files.append(se)
+        scene["se_path"] = copied_se
+
+        # 音声
+        audio = scene.get("audio_path")
+        copied_audio = _safe_copy(audio, audio_dir, f"scene_{scene['scene_id']}_voice")
+        if audio and not copied_audio:
+            missing_files.append(audio)
+        scene["audio_path"] = copied_audio
+
+    # --- assets ---
+    for asset in manifest["assets"]:
+        path = asset.get("path_or_url")
+
+        copied = _safe_copy(path, assets_dir, f"asset_{asset['asset_id']}")
+        if path and not copied:
+            missing_files.append(path)
+
+        asset["path_or_url"] = copied
+
+    # --- voice assets ---
+    for voice in manifest["voice_assets"]:
+        audio = voice.get("audio_path")
+        copied_audio = _safe_copy(audio, audio_dir, f"voice_{voice['voice_asset_id']}")
+
+        if audio and not copied_audio:
+            missing_files.append(audio)
+
+        voice["audio_path"] = copied_audio
+
+    # missing追加
+    manifest["missing_files"] = missing_files
+
+    # 保存
     manifest_path = export_dir / "manifest.json"
 
     with manifest_path.open("w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 
     return {
-        "message": "DaVinci export manifest created",
+        "message": "DaVinci export with assets created",
         "video_id": video_id,
         "export_dir": export_dir.as_posix(),
         "manifest_path": manifest_path.as_posix(),
-        "manifest": manifest,
+        "missing_files": missing_files,
     }
