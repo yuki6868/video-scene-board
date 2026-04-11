@@ -1549,3 +1549,8 @@
     grid-column: auto;
   }
 }
+
+.export-button {
+  background: #9333ea;
+  color: #fff;
+}

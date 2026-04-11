@@ -65,3 +65,15 @@ export async function duplicateVideo(videoId) {
 
   return response.json();
 }
+
+export async function exportVideoDavinci(videoId) {
+  const res = await fetch(`http://127.0.0.1:8000/videos/${videoId}/export/davinci`, {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    throw new Error("DaVinci出力に失敗しました");
+  }
+
+  return await res.json();
+}

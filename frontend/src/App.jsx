@@ -35,6 +35,7 @@ import {
 import AssetEditModal from "./components/modals/AssetEditModal";
 import VideoModal from "./components/modals/VideoModal";
 import SceneModal from "./components/modals/SceneModal";
+import { exportVideoDavinci } from "./api/videoApi";
 
 const initialSceneForm = {
   title: "",
@@ -513,6 +514,23 @@ function App() {
       [taskId]: !prev[taskId],
     }));
   }
+
+    const handleExportDavinci = async () => {
+    if (!selectedVideo) {
+      alert("動画が選択されていません");
+      return;
+    }
+
+    try {
+      const result = await exportVideoDavinci(selectedVideo.id);
+
+      alert(`出力完了！\n\n保存先:\n${result.manifest_path}`);
+      console.log("DaVinci Export:", result);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "出力に失敗しました");
+    }
+  };
 
   function getSceneTaskProgress(sceneId) {
     const relatedTasks = tasks.filter((task) => task.scene_id === sceneId);
@@ -1565,6 +1583,13 @@ function App() {
             <div className="video-actions">
               <button className="submit-button" onClick={openEditVideoModal}>
                 編集
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleExportDavinci}
+              >
+                DaVinci出力
               </button>
               <button
                 type="button"
