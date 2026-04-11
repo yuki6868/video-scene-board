@@ -7,6 +7,10 @@ from app.models.scene import Scene
 from app.schemas.video import VideoCreate, VideoResponse, VideoUpdate
 from app.services.davinci_export import export_davinci_manifest
 
+from fastapi.responses import FileResponse
+from app.services.davinci_export import export_davinci_manifest, create_davinci_export_zip
+from pathlib import Path
+
 router = APIRouter(prefix="/videos", tags=["videos"])
 
 
@@ -123,6 +127,32 @@ def export_video_for_davinci(video_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Video not found")
 
     return export_davinci_manifest(db, video_id)
+
+@router.get("/{video_id}/export/davinci/download")
+def download_video_davinci_export(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    export_dir = Path("exports") / f"video_{video_id}"
+    manifest_path = export_dir / "manifest.json"
+
+    if not manifest_path.exists():
+        raise HTTPException(
+            status_code=400,
+            detail="先にDaVinci出力を実行してください",
+        )
+
+    try:
+        zip_info = create_davinci_export_zip(video_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Export directory not found")
+
+    return FileResponse(
+        path=zip_info["zip_path"],
+        filename=zip_info["zip_name"],
+        media_type="application/zip",
+    )
 
 
 @router.delete("/{video_id}")

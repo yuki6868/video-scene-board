@@ -9,6 +9,7 @@ from app.models.video import Video
 from app.models.voice_asset import VoiceAsset
 
 import shutil
+import zipfile
 
 
 EXPORT_BASE_DIR = Path("exports")
@@ -247,4 +248,23 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
         "export_dir": export_dir.as_posix(),
         "manifest_path": manifest_path.as_posix(),
         "missing_files": missing_files,
+    }
+
+def create_davinci_export_zip(video_id: int) -> dict:
+    export_dir = EXPORT_BASE_DIR / f"video_{video_id}"
+    if not export_dir.exists():
+        raise FileNotFoundError("Export directory not found")
+
+    zip_path = EXPORT_BASE_DIR / f"video_{video_id}.zip"
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for file_path in export_dir.rglob("*"):
+            if file_path.is_file():
+                arcname = file_path.relative_to(export_dir.parent)
+                zipf.write(file_path, arcname.as_posix())
+
+    return {
+        "video_id": video_id,
+        "zip_path": zip_path.as_posix(),
+        "zip_name": zip_path.name,
     }

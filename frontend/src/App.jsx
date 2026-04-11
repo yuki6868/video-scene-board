@@ -35,7 +35,7 @@ import {
 import AssetEditModal from "./components/modals/AssetEditModal";
 import VideoModal from "./components/modals/VideoModal";
 import SceneModal from "./components/modals/SceneModal";
-import { exportVideoDavinci } from "./api/videoApi";
+import { exportVideoDavinci, getDavinciExportDownloadUrl, } from "./api/videoApi";
 
 const initialSceneForm = {
   title: "",
@@ -515,7 +515,7 @@ function App() {
     }));
   }
 
-    const handleExportDavinci = async () => {
+  const handleExportDavinci = async () => {
     if (!selectedVideo) {
       alert("動画が選択されていません");
       return;
@@ -530,6 +530,16 @@ function App() {
       console.error(error);
       alert(error.message || "出力に失敗しました");
     }
+  };
+
+  const handleDownloadDavinciZip = () => {
+    if (!selectedVideo) {
+      alert("動画が選択されていません");
+      return;
+    }
+
+    const url = getDavinciExportDownloadUrl(selectedVideo.id);
+    window.open(url, "_blank");
   };
 
   function getSceneTaskProgress(sceneId) {
@@ -1590,6 +1600,13 @@ function App() {
                 onClick={handleExportDavinci}
               >
                 DaVinci出力
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleDownloadDavinciZip}
+              >
+                ZIPダウンロード
               </button>
               <button
                 type="button"

@@ -77,3 +77,7 @@ export async function exportVideoDavinci(videoId) {
 
   return await res.json();
 }
+
+export function getDavinciExportDownloadUrl(videoId) {
+  return `http://127.0.0.1:8000/videos/${videoId}/export/davinci/download`;
+}
