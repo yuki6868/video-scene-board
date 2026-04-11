@@ -117,6 +117,17 @@ function getStatusLabel(status) {
   }
 }
 
+function getDisplayText(value, fallback = "未設定") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string" && value.trim() === "") return fallback;
+  return value;
+}
+
+function truncateDescription(text, maxLength = 100) {
+  if (!text || !text.trim()) return "説明なし";
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
 function TaskDroppableColumn({ status, count, children }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `task-column-${status}`,
@@ -1468,18 +1479,69 @@ function App() {
 
           {selectedVideo && (
             <div className="selected-video-summary">
-              <div className="selected-video-top">
-                <strong>{selectedVideo.title}</strong>
-                <span className={getStatusClassName(selectedVideo.status)}>
-                  {getStatusLabel(selectedVideo.status)}
-                </span>
-              </div>
+              <div className="selected-video-main">
+                <div className="selected-video-thumbnail">
+                  {selectedVideo.thumbnail_url ? (
+                    <img
+                      src={buildFileUrl(selectedVideo.thumbnail_url)}
+                      alt={`${selectedVideo.title} のサムネイル`}
+                    />
+                  ) : (
+                    <div className="selected-video-thumbnail-empty">未設定</div>
+                  )}
+                </div>
 
-              <span>{selectedVideo.description || "説明なし"}</span>
+                <div className="selected-video-content">
+                  <div className="selected-video-top">
+                    <strong>{selectedVideo.title}</strong>
+                    <span className={getStatusClassName(selectedVideo.status)}>
+                      {getStatusLabel(selectedVideo.status)}
+                    </span>
+                  </div>
 
-              <div className="video-datetime-list">
-                <span>作成: {formatDateTime(selectedVideo.created_at)}</span>
-                <span>更新: {formatDateTime(selectedVideo.updated_at)}</span>
+                  <p className="selected-video-description">
+                    {truncateDescription(selectedVideo.description)}
+                  </p>
+
+                  <div className="selected-video-meta-grid">
+                    <div className="selected-video-meta-item">
+                      <span className="selected-video-meta-label">タグ</span>
+                      <span className="selected-video-meta-value">
+                        {getDisplayText(selectedVideo.tags)}
+                      </span>
+                    </div>
+
+                    <div className="selected-video-meta-item">
+                      <span className="selected-video-meta-label">YouTube URL</span>
+                      {selectedVideo.youtube_url ? (
+                        <a
+                          href={selectedVideo.youtube_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="selected-video-link"
+                        >
+                          {selectedVideo.youtube_url}
+                        </a>
+                      ) : (
+                        <span className="selected-video-meta-value">未設定</span>
+                      )}
+                    </div>
+
+                    <div className="selected-video-meta-item">
+                      <span className="selected-video-meta-label">投稿日</span>
+                      <span className="selected-video-meta-value">
+                        {selectedVideo.published_at
+                          ? formatDateTime(selectedVideo.published_at)
+                          : "未設定"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="video-datetime-list">
+                    <span>作成: {formatDateTime(selectedVideo.created_at)}</span>
+                    <span>更新: {formatDateTime(selectedVideo.updated_at)}</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
