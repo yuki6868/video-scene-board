@@ -35,6 +35,9 @@ def migrate_video_columns(engine):
             "target": "TEXT",
             "goal": "TEXT",
             "status": "VARCHAR(50) DEFAULT 'draft' NOT NULL",
+            "aspect_ratio": "VARCHAR(20) DEFAULT '9:16' NOT NULL",
+            "frame_width": "INTEGER DEFAULT 1080 NOT NULL",
+            "frame_height": "INTEGER DEFAULT 1920 NOT NULL",
         }
 
         for column_name, column_type in columns_to_add.items():

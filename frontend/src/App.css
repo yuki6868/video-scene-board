@@ -1554,3 +1554,30 @@
   background: #9333ea;
   color: #fff;
 }
+
+.export-button {
+  background-color: #2563eb;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* ホバー */
+.export-button:hover {
+  background-color: #1d4ed8;
+}
+
+/* 出力中 */
+.export-button.is-loading {
+  background-color: #9ca3af; /* グレー */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* disabledでも安全に */
+.export-button:disabled {
+  pointer-events: none;
+}

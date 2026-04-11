@@ -66,9 +66,15 @@ export async function duplicateVideo(videoId) {
   return response.json();
 }
 
-export async function exportVideoDavinci(videoId) {
+export async function exportVideoDavinci(videoId, exportName = "") {
   const res = await fetch(`http://127.0.0.1:8000/videos/${videoId}/export/davinci`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      export_name: exportName,
+    }),
   });
 
   if (!res.ok) {

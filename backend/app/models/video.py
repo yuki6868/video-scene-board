@@ -24,6 +24,11 @@ class Video(Base):
     goal = Column(String, nullable=True)
     status = Column(String(50), nullable=False, default="draft")
 
+    # 追加: 出力フォーマット設定
+    aspect_ratio = Column(String(20), nullable=False, default="9:16")
+    frame_width = Column(Integer, nullable=False, default=1080)
+    frame_height = Column(Integer, nullable=False, default=1920)
+
     scenes = relationship(
         "Scene",
         back_populates="video",

@@ -1,15 +1,22 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
-from app.models.video import Video
 from app.models.scene import Scene
-from app.schemas.video import VideoCreate, VideoResponse, VideoUpdate
-from app.services.davinci_export import export_davinci_manifest
-
-from fastapi.responses import FileResponse
-from app.services.davinci_export import export_davinci_manifest, create_davinci_export_zip
-from pathlib import Path
+from app.models.video import Video
+from app.schemas.video import (
+    DavinciExportRequest,
+    VideoCreate,
+    VideoResponse,
+    VideoUpdate,
+)
+from app.services.davinci_export import (
+    create_davinci_export_zip,
+    export_davinci_manifest,
+)
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -29,6 +36,9 @@ def create_video(video: VideoCreate, db: Session = Depends(get_db)):
         target=video.target,
         goal=video.goal,
         status=video.status,
+        aspect_ratio=video.aspect_ratio,
+        frame_width=video.frame_width,
+        frame_height=video.frame_height,
     )
     db.add(new_video)
     db.commit()
@@ -68,6 +78,9 @@ def update_video(video_id: int, video_data: VideoUpdate, db: Session = Depends(g
     video.target = video_data.target
     video.goal = video_data.goal
     video.status = video_data.status
+    video.aspect_ratio = video_data.aspect_ratio
+    video.frame_width = video_data.frame_width
+    video.frame_height = video_data.frame_height
 
     db.commit()
     db.refresh(video)
@@ -93,6 +106,9 @@ def duplicate_video(video_id: int, db: Session = Depends(get_db)):
         target=source_video.target,
         goal=source_video.goal,
         status="draft",
+        aspect_ratio=source_video.aspect_ratio,
+        frame_width=source_video.frame_width,
+        frame_height=source_video.frame_height,
     )
     db.add(duplicated_video)
     db.flush()
@@ -121,12 +137,21 @@ def duplicate_video(video_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{video_id}/export/davinci")
-def export_video_for_davinci(video_id: int, db: Session = Depends(get_db)):
+def export_video_for_davinci(
+    video_id: int,
+    payload: DavinciExportRequest,
+    db: Session = Depends(get_db),
+):
     video = db.query(Video).filter(Video.id == video_id).first()
     if video is None:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    return export_davinci_manifest(db, video_id)
+    return export_davinci_manifest(
+        db=db,
+        video_id=video_id,
+        export_name=payload.export_name,
+    )
+
 
 @router.get("/{video_id}/export/davinci/download")
 def download_video_davinci_export(video_id: int, db: Session = Depends(get_db)):
@@ -134,8 +159,20 @@ def download_video_davinci_export(video_id: int, db: Session = Depends(get_db)):
     if video is None:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    export_dir = Path("exports") / f"video_{video_id}"
-    manifest_path = export_dir / "manifest.json"
+    export_candidates = sorted(
+        Path("exports").glob(f"video_{video_id}_*"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+
+    if not export_candidates:
+        raise HTTPException(
+            status_code=400,
+            detail="先にDaVinci出力を実行してください",
+        )
+
+    latest_export_dir = export_candidates[0]
+    manifest_path = latest_export_dir / "manifest.json"
 
     if not manifest_path.exists():
         raise HTTPException(

@@ -148,6 +148,36 @@ function VideoModal({
                 <option value="done">done</option>
               </select>
             </div>
+
+            <div className="form-group">
+                <label>画面比率</label>
+                <select name="aspect_ratio" value={form.aspect_ratio} onChange={onChange}>
+                    <option value="9:16">9:16（ショート動画）</option>
+                    <option value="16:9">16:9（通常動画）</option>
+                </select>
+            </div>
+
+            <div className="form-group">
+                <label>横幅</label>
+                <input
+                    type="number"
+                    name="frame_width"
+                    value={form.frame_width}
+                    onChange={onChange}
+                    placeholder="1080"
+                />
+            </div>
+
+            <div className="form-group">
+                <label>縦幅</label>
+                <input
+                    type="number"
+                    name="frame_height"
+                    value={form.frame_height}
+                    onChange={onChange}
+                    placeholder="1920"
+                />
+            </div>
           </div>
 
           <div className="modal-actions">

@@ -14,9 +14,52 @@ import csv
 import xml.etree.ElementTree as ET
 import subprocess
 from PIL import Image, ImageDraw, ImageFont
+from datetime import datetime
+import json
+import re
 
 
 EXPORT_BASE_DIR = Path("exports")
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _sanitize_export_name(export_name: str | None) -> str | None:
+    if not export_name:
+        return None
+
+    value = export_name.strip()
+    if not value:
+        return None
+
+    # ファイル名として危険な文字を置換
+    value = re.sub(r'[\\/:*?"<>|]', "_", value)
+    # 空白を _ にまとめる
+    value = re.sub(r"\s+", "_", value)
+    # _ の連続を1つに
+    value = re.sub(r"_+", "_", value)
+    value = value.strip("._")
+
+    return value or None
+
+
+def _build_export_dir(video_id: int, export_name: str | None) -> Path:
+    safe_name = _sanitize_export_name(export_name)
+
+    if not safe_name:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return EXPORT_BASE_DIR / f"video_{video_id}_{timestamp}"
+
+    base_dir = EXPORT_BASE_DIR / f"video_{video_id}_{safe_name}"
+
+    if not base_dir.exists():
+        return base_dir
+
+    suffix = 2
+    while True:
+        candidate = EXPORT_BASE_DIR / f"video_{video_id}_{safe_name}_{suffix}"
+        if not candidate.exists():
+            return candidate
+        suffix += 1
 
 
 def _to_posix_path(value: str | None) -> str | None:
@@ -292,8 +335,21 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
 
     return csv_path.as_posix()
 
-def _to_file_uri(path_str: str) -> str:
-    return Path(path_str).resolve().as_uri()
+def _to_file_uri(path_str: str, base_dir: Path) -> str:
+    path = Path(path_str)
+
+    if path.is_absolute():
+        return path.resolve().as_uri()
+
+    # "exports/..." で始まる場合は backend ルート基準で解決
+    if path.parts and path.parts[0] == EXPORT_BASE_DIR.name:
+        return (BACKEND_ROOT / path).resolve().as_uri()
+
+    # それ以外は export_dir 基準で解決
+    if not base_dir.is_absolute():
+        base_dir = (BACKEND_ROOT / base_dir).resolve()
+
+    return (base_dir / path).resolve().as_uri()
 
 
 def _seconds_to_fcpx_time(seconds: float, fps: int = 30) -> str:
@@ -363,7 +419,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 "asset",
                 id=scene["bg_id"],
                 name=f"{scene['title']}_bg",
-                src=_to_file_uri(scene["bg_video_path"]),
+                src=_to_file_uri(scene["bg_video_path"], export_dir),
                 start="0s",
                 duration=duration,
                 hasVideo="1",
@@ -380,7 +436,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 "asset",
                 id=scene["audio_id"],
                 name=f"{scene['title']}_audio",
-                src=_to_file_uri(scene["audio_path"]),
+                src=_to_file_uri(scene["audio_path"], export_dir),
                 start="0s",
                 duration=duration,
                 hasVideo="0",
@@ -399,7 +455,7 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 "asset",
                 id=scene["telop_id"],
                 name=f"{scene['title']}_telop",
-                src=_to_file_uri(scene["telop_video_path"]),
+                src=_to_file_uri(scene["telop_video_path"], export_dir),
                 start="0s",
                 duration=duration,
                 hasVideo="1",
@@ -626,10 +682,10 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 
 #     return xml_path.as_posix()
 
-def export_davinci_manifest(db: Session, video_id: int) -> dict:
+def export_davinci_manifest(db: Session, video_id: int, export_name: str | None = None) -> dict:
     manifest = build_davinci_manifest(db, video_id)
 
-    export_dir = EXPORT_BASE_DIR / f"video_{video_id}"
+    export_dir = _build_export_dir(video_id, export_name)
     assets_dir = export_dir / "assets"
     audio_dir = export_dir / "audio"
 
@@ -671,7 +727,7 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
             missing_files.append(path)
 
         asset["path_or_url"] = copied
-    
+
     # --- background動画生成 ---
     rendered_bg_dir = export_dir / "rendered_bg"
 
@@ -707,7 +763,6 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
         scene["telop_video_path"] = None
 
         try:
-            # まずは音声生成時に作った字幕PNGを優先利用
             if subtitle_png_path:
                 copied_subtitle = _safe_copy(
                     subtitle_png_path,
@@ -722,7 +777,6 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
                 else:
                     missing_files.append(subtitle_png_path)
 
-            # 字幕PNGがない場合のみ、従来どおり telop テキストから生成
             if text:
                 generate_telop_image(text, img_path)
                 generated_path = generate_telop_video(str(img_path), video_path, duration)
@@ -753,16 +807,14 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
 
         voice["subtitle_png_path"] = copied_subtitle_png
 
-    # missing追加
     manifest["missing_files"] = missing_files
 
     csv_path = create_davinci_scenes_csv(manifest, export_dir)
     manifest["scenes_csv_path"] = csv_path
-    
+
     fcpxml_path = create_fcpxml(manifest, export_dir)
     manifest["fcpxml_path"] = fcpxml_path
 
-    # 保存
     manifest_path = export_dir / "manifest.json"
 
     with manifest_path.open("w", encoding="utf-8") as f:
@@ -771,6 +823,7 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
     return {
         "message": "DaVinci export with assets created",
         "video_id": video_id,
+        "export_name": _sanitize_export_name(export_name),
         "export_dir": export_dir.as_posix(),
         "manifest_path": manifest_path.as_posix(),
         "csv_path": csv_path,
@@ -779,11 +832,17 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
     }
 
 def create_davinci_export_zip(video_id: int) -> dict:
-    export_dir = EXPORT_BASE_DIR / f"video_{video_id}"
-    if not export_dir.exists():
+    candidate_dirs = sorted(
+        EXPORT_BASE_DIR.glob(f"video_{video_id}_*"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+
+    if not candidate_dirs:
         raise FileNotFoundError("Export directory not found")
 
-    zip_path = EXPORT_BASE_DIR / f"video_{video_id}.zip"
+    export_dir = candidate_dirs[0]
+    zip_path = EXPORT_BASE_DIR / f"{export_dir.name}.zip"
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for file_path in export_dir.rglob("*"):

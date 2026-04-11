@@ -71,6 +71,9 @@ const initialVideoForm = {
   target: "",
   goal: "",
   status: "draft",
+  aspect_ratio: "9:16",
+  frame_width: 1080,
+  frame_height: 1920,
 };
 
 const VOICE_STYLE_OPTIONS = [
@@ -97,6 +100,19 @@ const VOICE_STYLE_OPTIONS = [
 function truncateText(text, maxLength = 80) {
   if (!text) return "未設定";
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function buildDefaultExportName(video) {
+  if (!video) return "";
+
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mi = String(now.getMinutes()).padStart(2, "0");
+
+  return `${video.title}_${yyyy}${mm}${dd}_${hh}${mi}`;
 }
 
 function buildFileUrl(path) {
@@ -442,6 +458,7 @@ function App() {
   const [editingAsset, setEditingAsset] = useState(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [editingVideoId, setEditingVideoId] = useState(null);
+  const [isDavinciExporting, setIsDavinciExporting] = useState(false);
 
   const initialNewTask = {
     create_mode: "section",
@@ -515,25 +532,114 @@ function App() {
     }));
   }
 
+  // sceneForm → API payload に変換
+  const buildScenePayload = (form) => ({
+    title: form.title,
+    script: form.script,
+    materials: form.materials,
+    section_type: form.section_type,
+    status: form.status,
+    duration_seconds:
+      form.duration_seconds === "" || form.duration_seconds == null
+        ? null
+        : Number(form.duration_seconds),
+    audio_path: form.audio_path,
+    character_name: form.character_name,
+    character_expression: form.character_expression,
+    background_path: form.background_path,
+    se_path: form.se_path,
+    telop: form.telop,
+    direction: form.direction,
+    edit_note: form.edit_note,
+  });
+
+  // 未保存変更があるか判定
+  const isSceneDirty = (form, scene) => {
+    if (!scene) return false;
+
+    const payload = buildScenePayload(form);
+
+    return (
+      payload.title !== (scene.title || "") ||
+      payload.script !== (scene.script || "") ||
+      payload.materials !== (scene.materials || "") ||
+      payload.section_type !== (scene.section_type || "") ||
+      payload.status !== (scene.status || "未着手") ||
+      Number(payload.duration_seconds || 0) !== Number(scene.duration_seconds || 0) ||
+      payload.audio_path !== (scene.audio_path || "") ||
+      payload.character_name !== (scene.character_name || "") ||
+      payload.character_expression !== (scene.character_expression || "") ||
+      payload.background_path !== (scene.background_path || "") ||
+      payload.se_path !== (scene.se_path || "") ||
+      payload.telop !== (scene.telop || "") ||
+      payload.direction !== (scene.direction || "") ||
+      payload.edit_note !== (scene.edit_note || "")
+    );
+  };
+
   const handleExportDavinci = async () => {
     if (!selectedVideo) {
-      alert("動画が選択されていません");
+      alert("動画を選択してください");
       return;
     }
 
+    if (isDavinciExporting) {
+      return;
+    }
+
+    const defaultExportName = buildDefaultExportName(selectedVideo);
+    const inputName = window.prompt(
+      "DaVinci出力名を入力してください\n例: 字幕修正版 / 背景差し替え版\n空欄なら日時ベースになります",
+      defaultExportName
+    );
+
+    if (inputName === null) {
+      return;
+    }
+
+    const exportName = inputName.trim();
+
+    setIsDavinciExporting(true);
+
     try {
-      // ① manifest + ファイル生成
-      const result = await exportVideoDavinci(selectedVideo.id);
+      if (editingSceneId) {
+        const targetScene = scenes.find((s) => s.id === editingSceneId);
 
-      console.log("DaVinci Export:", result);
+        if (targetScene && isSceneDirty(sceneForm, targetScene)) {
+          const payload = {
+            ...sceneForm,
+            duration_seconds:
+              sceneForm.duration_seconds === "" || sceneForm.duration_seconds == null
+                ? null
+                : Number(sceneForm.duration_seconds),
+          };
 
-      // ② ZIPダウンロード開始
-      const downloadUrl = getDavinciExportDownloadUrl(selectedVideo.id);
-      window.open(downloadUrl, "_blank");
+          await updateScene(editingSceneId, {
+            ...payload,
+            position: targetScene.position,
+          });
 
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "出力に失敗しました");
+          setScenes((prev) =>
+            prev.map((s) =>
+              s.id === editingSceneId
+                ? { ...s, ...payload }
+                : s
+            )
+          );
+        }
+      }
+
+      const result = await exportVideoDavinci(selectedVideo.id, exportName);
+
+      console.log(result);
+
+      const exportedName = result.export_name || "日時ベース";
+      alert(`DaVinci用データを出力しました\n出力名: ${exportedName}`);
+    } catch (err) {
+      console.error(err);
+      alert("エクスポートに失敗しました");
+    } finally {
+      setIsDavinciExporting(false);
     }
   };
 
@@ -1085,6 +1191,9 @@ function App() {
       target: selectedVideo.target || "",
       goal: selectedVideo.goal || "",
       status: selectedVideo.status || "draft",
+      aspect_ratio: selectedVideo.aspect_ratio || "9:16",
+      frame_width: selectedVideo.frame_width ?? 1080,
+      frame_height: selectedVideo.frame_height ?? 1920,
     });
 
     setEditingVideoId(selectedVideo.id);
@@ -1423,6 +1532,9 @@ function App() {
         goal: videoForm.goal?.trim() || "",
         published_at: videoForm.published_at || null,
         status: videoForm.status || "draft",
+        aspect_ratio: videoForm.aspect_ratio || "9:16",
+        frame_width: Number(videoForm.frame_width) || 1080,
+        frame_height: Number(videoForm.frame_height) || 1920,
       };
 
       if (editingVideoId !== null) {
@@ -1601,10 +1713,11 @@ function App() {
               </button>
               <button
                 type="button"
-                className="secondary-button"
+                className={`export-button ${isDavinciExporting ? "is-loading" : ""}`}
                 onClick={handleExportDavinci}
+                disabled={isDavinciExporting}
               >
-                DaVinci出力
+                {isDavinciExporting ? "DaVinci出力中..." : "DaVinci出力"}
               </button>
               <button
                 type="button"

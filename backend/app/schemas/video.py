@@ -17,6 +17,10 @@ class VideoBase(BaseModel):
     goal: Optional[str] = None
     status: str = "draft"
 
+    aspect_ratio: str = "9:16"
+    frame_width: int = 1080
+    frame_height: int = 1920
+
 
 class VideoCreate(VideoBase):
     pass
@@ -32,3 +36,7 @@ class VideoResponse(VideoBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DavinciExportRequest(BaseModel):
+    export_name: Optional[str] = None
