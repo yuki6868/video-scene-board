@@ -13,6 +13,7 @@ from app.models.task import Task
 from app.models.video import Video
 from app.schemas.asset import AssetCreate, AssetResponse, AssetUpdate
 from app.schemas.task import TaskResponse
+from app.services.task_sync import recalculate_parent_task_status
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -130,23 +131,38 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
     if asset.memo:
         detail_lines.append(f"メモ: {asset.memo}")
 
+    # 素材種類ごとにタイトル / task_type / 親タスク種別を決める
     if asset.asset_type == "audio":
         task_title = f"ナレーション作成: {asset.title}"
         task_type = "音声"
+        parent_task_type = "voice"
     elif asset.asset_type == "background":
         task_title = f"背景配置: {asset.title}"
         task_type = "背景"
+        parent_task_type = "background"
     elif asset.asset_type == "se":
         task_title = f"効果音追加: {asset.title}"
         task_type = "SE"
+        parent_task_type = "asset"
     else:
         task_title = f"素材対応: {asset.title}"
         task_type = "素材"
+        parent_task_type = "asset"
+
+    parent_task = (
+        db.query(Task)
+        .filter(
+            Task.scene_id == asset.scene_id,
+            Task.task_type == parent_task_type
+        )
+        .first()
+    )
 
     task = Task(
         video_id=asset.video_id,
         scene_id=asset.scene_id,
         asset_id=asset.id,
+        parent_task_id=parent_task.id if parent_task else None,
         title=task_title,
         detail="\n".join(detail_lines),
         task_type=task_type,
@@ -157,6 +173,11 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    if task.parent_task_id is not None:
+        recalculate_parent_task_status(db, task.parent_task_id)
+        db.commit()
+        db.refresh(task)
 
     return task
 
@@ -267,6 +288,11 @@ def update_asset(
             linked_task.status = "未着手"
 
     db.commit()
+
+    if linked_task is not None and linked_task.parent_task_id is not None:
+        recalculate_parent_task_status(db, linked_task.parent_task_id)
+        db.commit()
+
     db.refresh(asset)
     return asset
 
