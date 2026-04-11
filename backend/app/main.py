@@ -16,24 +16,23 @@ from app.models.task import Task
 from app.models.video import Video
 from app.models.voice_asset import VoiceAsset
 
+def column_exists(conn, table, column):
+    result = conn.execute(text(f"PRAGMA table_info({table})"))
+    columns = [row[1] for row in result]
+    return column in columns
 
-def migrate_video_columns():
+def migrate_video_columns(engine):
     with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE videos ADD COLUMN concept TEXT"))
-        except Exception:
-            pass
-
-        try:
-            conn.execute(text("ALTER TABLE videos ADD COLUMN target TEXT"))
-        except Exception:
-            pass
-
-        try:
-            conn.execute(text("ALTER TABLE videos ADD COLUMN goal TEXT"))
-        except Exception:
-            pass
-
+        if not column_exists(conn, "videos", "thumbnail_url"):
+            conn.execute(text("ALTER TABLE videos ADD COLUMN thumbnail_url TEXT"))
+        if not column_exists(conn, "videos", "description"):
+            conn.execute(text("ALTER TABLE videos ADD COLUMN description TEXT"))
+        if not column_exists(conn, "videos", "tags"):
+            conn.execute(text("ALTER TABLE videos ADD COLUMN tags TEXT"))
+        conn.execute(text("ALTER TABLE videos ADD COLUMN video_path TEXT"))
+        conn.execute(text("ALTER TABLE videos ADD COLUMN youtube_url TEXT"))
+        conn.execute(text("ALTER TABLE videos ADD COLUMN youtube_id TEXT"))
+        conn.execute(text("ALTER TABLE videos ADD COLUMN published_at TEXT"))
         conn.commit()
 
 def migrate_task_parent_column(engine):
@@ -237,7 +236,7 @@ Base.metadata.create_all(bind=engine)
 migrate_task_parent_column(engine)
 migrate_existing_tasks_to_parent(engine)
 remove_duplicate_tasks(engine)
-migrate_video_columns()
+migrate_video_columns(engine)
 migrate_scene_columns()
 migrate_task_columns()
 backfill_task_asset_links()

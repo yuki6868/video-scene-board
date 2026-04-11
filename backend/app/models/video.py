@@ -10,6 +10,8 @@ class Video(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
+
+    thumbnail_url = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     concept = Column(String, nullable=True)
     target = Column(String, nullable=True)

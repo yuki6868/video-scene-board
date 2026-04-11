@@ -3,6 +3,17 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
+class VideoBase(BaseModel):
+    title: str
+    thumbnail_url: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[str] = None
+    video_path: Optional[str] = None
+    youtube_url: Optional[str] = None
+    youtube_id: Optional[str] = None
+    published_at: Optional[datetime] = None
+
+
 class VideoCreate(BaseModel):
     title: str
     description: str | None = None
