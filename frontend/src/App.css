@@ -1581,3 +1581,10 @@
 .export-button:disabled {
   pointer-events: none;
 }
+
+.video-uploaded-path {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  word-break: break-all;
+}

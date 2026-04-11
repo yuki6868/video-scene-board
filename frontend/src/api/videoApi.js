@@ -87,3 +87,19 @@ export async function exportVideoDavinci(videoId, exportName = "") {
 export function getDavinciExportDownloadUrl(videoId) {
   return `http://127.0.0.1:8000/videos/${videoId}/export/davinci/download`;
 }
+
+export async function uploadVideoThumbnail(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/videos/thumbnail/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("サムネイル画像のアップロードに失敗しました");
+  }
+
+  return response.json();
+}

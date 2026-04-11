@@ -4,6 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+import os
+import uuid
+
+from fastapi import UploadFile, File, Form
+
 from app.dependencies.db import get_db
 from app.models.scene import Scene
 from app.models.video import Video
@@ -86,6 +91,22 @@ def update_video(video_id: int, video_data: VideoUpdate, db: Session = Depends(g
     db.refresh(video)
     return video
 
+@router.post("/thumbnail/upload")
+def upload_video_thumbnail(
+    file: UploadFile = File(...),
+):
+    upload_dir = os.path.join("uploads", "thumbnails")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = f"{uuid.uuid4()}_{file.filename}"
+    save_path = os.path.join(upload_dir, filename)
+
+    with open(save_path, "wb") as f:
+        f.write(file.file.read())
+
+    return {
+        "thumbnail_url": f"uploads/thumbnails/{filename}"
+    }
 
 @router.post("/{video_id}/duplicate", response_model=VideoResponse)
 def duplicate_video(video_id: int, db: Session = Depends(get_db)):

@@ -24,6 +24,7 @@ import {
   updateVideo,
   deleteVideo,
   duplicateVideo,
+  uploadVideoThumbnail,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
 import {
@@ -62,6 +63,7 @@ const initialSceneForm = {
 const initialVideoForm = {
   title: "",
   thumbnail_url: "",
+  thumbnail_input_type: "upload",
   description: "",
   tags: "",
   video_path: "",
@@ -1184,6 +1186,9 @@ function App() {
     setVideoForm({
       title: selectedVideo.title || "",
       thumbnail_url: selectedVideo.thumbnail_url || "",
+      thumbnail_input_type: selectedVideo.thumbnail_url?.startsWith("http")
+        ? "url"
+        : "upload",
       description: selectedVideo.description || "",
       tags: selectedVideo.tags || "",
       video_path: selectedVideo.video_path || "",
@@ -1517,6 +1522,26 @@ function App() {
     }
   };
 
+  const handleThumbnailFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await uploadVideoThumbnail(file);
+
+      setVideoForm((prev) => ({
+        ...prev,
+        thumbnail_url: result.thumbnail_url,
+        thumbnail_input_type: "upload",
+      }));
+    } catch (error) {
+      console.error(error);
+      alert("サムネイル画像のアップロードに失敗しました");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const handleVideoSubmit = async () => {
     try {
       if (!videoForm.title || !videoForm.title.trim()) {
@@ -1525,11 +1550,10 @@ function App() {
       }
 
       const payload = {
-        ...videoForm,
         title: videoForm.title.trim(),
+        thumbnail_url: videoForm.thumbnail_url?.trim() || "",
         description: videoForm.description?.trim() || "",
         tags: videoForm.tags?.trim() || "",
-        thumbnail_url: videoForm.thumbnail_url?.trim() || "",
         video_path: videoForm.video_path?.trim() || "",
         youtube_url: videoForm.youtube_url?.trim() || "",
         youtube_id: videoForm.youtube_id?.trim() || "",
@@ -2192,10 +2216,11 @@ function App() {
       <VideoModal
         isOpen={isVideoModalOpen}
         form={videoForm}
-        editingVideoId={editingVideoId}
         onChange={handleVideoChange}
         onSubmit={handleVideoSubmit}
         onClose={closeVideoModal}
+        onThumbnailFileChange={handleThumbnailFileChange}
+        editingVideoId={editingVideoId}
       />
 
     </div>

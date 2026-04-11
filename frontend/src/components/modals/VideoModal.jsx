@@ -4,9 +4,12 @@ function VideoModal({
   onSubmit,
   form,
   onChange,
+  onThumbnailFileChange,
   editingVideoId,
 }) {
   if (!isOpen) return null;
+
+  const isUploadMode = (form.thumbnail_input_type || "upload") === "upload";
 
   return (
     <div className="modal-overlay">
@@ -31,16 +34,48 @@ function VideoModal({
               />
             </div>
 
-            <div className="form-group">
-              <label>サムネイルURL</label>
-              <input
-                type="text"
-                name="thumbnail_url"
-                value={form.thumbnail_url}
+            <div className="form-group video-modal-full">
+              <label>サムネイル入力方式</label>
+              <select
+                name="thumbnail_input_type"
+                value={form.thumbnail_input_type || "upload"}
                 onChange={onChange}
-                placeholder="https://... または /uploads/..."
-              />
+              >
+                <option value="upload">アップロード</option>
+                <option value="url">URL指定</option>
+              </select>
             </div>
+
+            {isUploadMode ? (
+              <div className="form-group video-modal-full">
+                <label>サムネイル画像アップロード</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onThumbnailFileChange}
+                />
+                {form.thumbnail_url ? (
+                  <p className="video-uploaded-path">
+                    保存先: {form.thumbnail_url}
+                  </p>
+                ) : (
+                  <p className="video-uploaded-path">
+                    まだアップロードされていません
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="form-group video-modal-full">
+                <label>サムネイルURL</label>
+                <input
+                  type="text"
+                  name="thumbnail_url"
+                  value={form.thumbnail_url}
+                  onChange={onChange}
+                  placeholder="https://... または uploads/..."
+                />
+              </div>
+            )}
 
             <div className="form-group">
               <label>タグ</label>
@@ -150,33 +185,33 @@ function VideoModal({
             </div>
 
             <div className="form-group">
-                <label>画面比率</label>
-                <select name="aspect_ratio" value={form.aspect_ratio} onChange={onChange}>
-                    <option value="9:16">9:16（ショート動画）</option>
-                    <option value="16:9">16:9（通常動画）</option>
-                </select>
+              <label>画面比率</label>
+              <select name="aspect_ratio" value={form.aspect_ratio} onChange={onChange}>
+                <option value="9:16">9:16（ショート動画）</option>
+                <option value="16:9">16:9（通常動画）</option>
+              </select>
             </div>
 
             <div className="form-group">
-                <label>横幅</label>
-                <input
-                    type="number"
-                    name="frame_width"
-                    value={form.frame_width}
-                    onChange={onChange}
-                    placeholder="1080"
-                />
+              <label>横幅</label>
+              <input
+                type="number"
+                name="frame_width"
+                value={form.frame_width}
+                onChange={onChange}
+                placeholder="1080"
+              />
             </div>
 
             <div className="form-group">
-                <label>縦幅</label>
-                <input
-                    type="number"
-                    name="frame_height"
-                    value={form.frame_height}
-                    onChange={onChange}
-                    placeholder="1920"
-                />
+              <label>縦幅</label>
+              <input
+                type="number"
+                name="frame_height"
+                value={form.frame_height}
+                onChange={onChange}
+                placeholder="1920"
+              />
             </div>
           </div>
 
