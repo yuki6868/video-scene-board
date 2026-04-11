@@ -219,42 +219,102 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
 
     return csv_path.as_posix()
 
+def _to_file_uri(path_str: str) -> str:
+    return Path(path_str).resolve().as_uri()
+
+
+def _seconds_to_fcpx_time(seconds: float, fps: int = 30) -> str:
+    frames = max(1, int(round(seconds * fps)))
+    return f"{frames}/{fps}s"
+
+
 def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     xml_path = export_dir / "timeline.fcpxml"
 
-    # ルート
-    fcpxml = ET.Element("fcpxml", version="1.11")
-
-    resources = ET.SubElement(fcpxml, "resources")
-    library = ET.SubElement(fcpxml, "library")
-    event = ET.SubElement(library, "event", name="Exported Event")
-    project = ET.SubElement(event, "project", name="Auto Timeline")
-    sequence = ET.SubElement(project, "sequence", duration="0s", format="r1")
-    spine = ET.SubElement(sequence, "spine")
-
-    current_time = 0
+    fps = 30
+    scene_assets = []
+    total_seconds = 0
 
     for scene in manifest.get("scenes", []):
-        duration = scene.get("duration_seconds") or 5
         audio_path = scene.get("audio_path")
-
         if not audio_path:
             continue
 
-        clip = ET.SubElement(
-            spine,
-            "asset-clip",
-            name=scene.get("title", "scene"),
-            offset=f"{current_time}s",
-            duration=f"{duration}s",
-            start="0s",
-            hasAudio="1",
-            hasVideo="0",
+        duration_seconds = scene.get("duration_seconds") or 5
+        total_seconds += duration_seconds
+
+        scene_assets.append(
+            {
+                "title": scene.get("title") or "scene",
+                "audio_path": audio_path,
+                "duration_seconds": duration_seconds,
+            }
         )
 
-        clip.set("src", audio_path)
+    total_duration = _seconds_to_fcpx_time(total_seconds or 1, fps=fps)
 
-        current_time += duration
+    fcpxml = ET.Element("fcpxml", version="1.11")
+
+    resources = ET.SubElement(fcpxml, "resources")
+    ET.SubElement(
+        resources,
+        "format",
+        id="r1",
+        name="FFVideoFormat1080p30",
+        frameDuration="1/30s",
+        width="1920",
+        height="1080",
+        colorSpace="1-1-1 (Rec. 709)",
+    )
+
+    for index, asset in enumerate(scene_assets, start=2):
+        asset_id = f"r{index}"
+        asset["asset_id"] = asset_id
+
+        ET.SubElement(
+            resources,
+            "asset",
+            id=asset_id,
+            name=asset["title"],
+            src=_to_file_uri(asset["audio_path"]),
+            start="0s",
+            duration=_seconds_to_fcpx_time(asset["duration_seconds"], fps=fps),
+            hasAudio="1",
+            hasVideo="0",
+            audioSources="1",
+            audioChannels="2",
+            audioRate="48k",
+        )
+
+    library = ET.SubElement(fcpxml, "library")
+    event = ET.SubElement(library, "event", name="Exported Event")
+    project = ET.SubElement(event, "project", name="Auto Timeline")
+
+    sequence = ET.SubElement(
+        project,
+        "sequence",
+        format="r1",
+        duration=total_duration,
+        tcStart="0s",
+        tcFormat="NDF",
+        audioLayout="stereo",
+        audioRate="48k",
+    )
+
+    spine = ET.SubElement(sequence, "spine")
+
+    current_seconds = 0
+    for asset in scene_assets:
+        ET.SubElement(
+            spine,
+            "asset-clip",
+            name=asset["title"],
+            ref=asset["asset_id"],
+            offset=_seconds_to_fcpx_time(current_seconds, fps=fps),
+            duration=_seconds_to_fcpx_time(asset["duration_seconds"], fps=fps),
+            start="0s",
+        )
+        current_seconds += asset["duration_seconds"]
 
     tree = ET.ElementTree(fcpxml)
     tree.write(xml_path, encoding="utf-8", xml_declaration=True)
