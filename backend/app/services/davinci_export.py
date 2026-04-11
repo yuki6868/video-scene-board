@@ -11,6 +11,7 @@ from app.models.voice_asset import VoiceAsset
 import shutil
 import zipfile
 import csv
+import xml.etree.ElementTree as ET
 
 
 EXPORT_BASE_DIR = Path("exports")
@@ -218,6 +219,48 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
 
     return csv_path.as_posix()
 
+def create_fcpxml(manifest: dict, export_dir: Path) -> str:
+    xml_path = export_dir / "timeline.fcpxml"
+
+    # ルート
+    fcpxml = ET.Element("fcpxml", version="1.11")
+
+    resources = ET.SubElement(fcpxml, "resources")
+    library = ET.SubElement(fcpxml, "library")
+    event = ET.SubElement(library, "event", name="Exported Event")
+    project = ET.SubElement(event, "project", name="Auto Timeline")
+    sequence = ET.SubElement(project, "sequence", duration="0s", format="r1")
+    spine = ET.SubElement(sequence, "spine")
+
+    current_time = 0
+
+    for scene in manifest.get("scenes", []):
+        duration = scene.get("duration_seconds") or 5
+        audio_path = scene.get("audio_path")
+
+        if not audio_path:
+            continue
+
+        clip = ET.SubElement(
+            spine,
+            "asset-clip",
+            name=scene.get("title", "scene"),
+            offset=f"{current_time}s",
+            duration=f"{duration}s",
+            start="0s",
+            hasAudio="1",
+            hasVideo="0",
+        )
+
+        clip.set("src", audio_path)
+
+        current_time += duration
+
+    tree = ET.ElementTree(fcpxml)
+    tree.write(xml_path, encoding="utf-8", xml_declaration=True)
+
+    return xml_path.as_posix()
+
 def export_davinci_manifest(db: Session, video_id: int) -> dict:
     manifest = build_davinci_manifest(db, video_id)
 
@@ -279,6 +322,9 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
 
     csv_path = create_davinci_scenes_csv(manifest, export_dir)
     manifest["scenes_csv_path"] = csv_path
+    
+    fcpxml_path = create_fcpxml(manifest, export_dir)
+    manifest["fcpxml_path"] = fcpxml_path
 
     # 保存
     manifest_path = export_dir / "manifest.json"
@@ -292,6 +338,7 @@ def export_davinci_manifest(db: Session, video_id: int) -> dict:
         "export_dir": export_dir.as_posix(),
         "manifest_path": manifest_path.as_posix(),
         "csv_path": csv_path,
+        "fcpxml_path": fcpxml_path,
         "missing_files": missing_files,
     }
 
