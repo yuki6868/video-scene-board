@@ -1158,6 +1158,7 @@ function App() {
 
   const closeSceneModal = () => {
     setIsSceneModalOpen(false);
+    setSelectedScene(null);
     resetSceneForm();
   };
 

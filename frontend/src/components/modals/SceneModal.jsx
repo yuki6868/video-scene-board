@@ -76,146 +76,148 @@ export default function SceneModal({
             rows={8}
           />
 
-          <section className="voice-panel">
-            <div className="voice-panel-header">
+          {editingSceneId ? (
+            <section className="voice-panel">
+                <div className="voice-panel-header">
                 <h3>音声生成</h3>
                 {voiceLoading && <span className="voice-status">生成中...</span>}
-            </div>
+                </div>
 
-            {voiceError && <p className="voice-error">{voiceError}</p>}
+                {voiceError && <p className="voice-error">{voiceError}</p>}
 
-            <div className="voice-form-grid">
+                <div className="voice-form-grid">
                 <label className="voice-form-field voice-form-field-full">
-                <span>セリフ</span>
-                <textarea
+                    <span>セリフ</span>
+                    <textarea
                     name="text"
                     value={voiceForm.text}
                     onChange={onVoiceFormChange}
                     rows={4}
                     placeholder="読み上げるセリフを入力"
-                />
+                    />
                 </label>
 
                 <label className="voice-form-field">
-                <span>話者</span>
-                <select
+                    <span>話者</span>
+                    <select
                     name="style_id"
                     value={voiceForm.style_id}
                     onChange={onVoiceFormChange}
-                >
+                    >
                     {voiceStyleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                        <option key={option.value} value={option.value}>
                         {option.label}
-                    </option>
+                        </option>
                     ))}
-                </select>
+                    </select>
                 </label>
 
                 <label className="voice-form-field">
-                <span>speed</span>
-                <input
+                    <span>speed</span>
+                    <input
                     type="number"
                     step="0.1"
                     name="speed"
                     value={voiceForm.speed}
                     onChange={onVoiceFormChange}
-                />
+                    />
                 </label>
 
                 <label className="voice-form-field">
-                <span>pitch</span>
-                <input
+                    <span>pitch</span>
+                    <input
                     type="number"
                     step="0.1"
                     name="pitch"
                     value={voiceForm.pitch}
                     onChange={onVoiceFormChange}
-                />
+                    />
                 </label>
 
                 <label className="voice-form-field">
-                <span>intonation</span>
-                <input
+                    <span>intonation</span>
+                    <input
                     type="number"
                     step="0.1"
                     name="intonation"
                     value={voiceForm.intonation}
                     onChange={onVoiceFormChange}
-                />
+                    />
                 </label>
 
                 <label className="voice-form-field">
-                <span>volume</span>
-                <input
+                    <span>volume</span>
+                    <input
                     type="number"
                     step="0.1"
                     name="volume"
                     value={voiceForm.volume}
                     onChange={onVoiceFormChange}
-                />
+                    />
                 </label>
-            </div>
+                </div>
 
-            <div className="voice-actions">
+                <div className="voice-actions">
                 <button
-                type="button"
-                className="primary-button"
-                onClick={onGenerateVoice}
-                disabled={voiceLoading}
+                    type="button"
+                    className="primary-button"
+                    onClick={onGenerateVoice}
+                    disabled={voiceLoading}
                 >
-                音声を生成
+                    音声を生成
                 </button>
-            </div>
+                </div>
 
-            <div className="voice-history">
+                <div className="voice-history">
                 <h4>生成済み音声</h4>
 
                 {voiceAssets.length === 0 ? (
-                <p className="voice-empty">まだ生成された音声はありません</p>
+                    <p className="voice-empty">まだ生成された音声はありません</p>
                 ) : (
-                <div className="voice-history-list">
+                    <div className="voice-history-list">
                     {voiceAssets.map((asset) => (
-                    <article
+                        <article
                         key={asset.id}
                         className={`voice-history-card ${asset.is_selected ? "selected" : ""}`}
-                    >
+                        >
                         <div className="voice-history-card-header">
-                        <div>
+                            <div>
                             <strong>
-                            {asset.character_name} / {asset.style_name}
+                                {asset.character_name} / {asset.style_name}
                             </strong>
                             <p className="voice-history-meta">
-                            speed:{asset.speed} / pitch:{asset.pitch} / intonation:{asset.intonation} / volume:{asset.volume}
+                                speed:{asset.speed} / pitch:{asset.pitch} / intonation:{asset.intonation} / volume:{asset.volume}
                             </p>
-                        </div>
+                            </div>
 
-                        {asset.is_selected && (
+                            {asset.is_selected && (
                             <span className="voice-selected-badge">採用中</span>
-                        )}
+                            )}
                         </div>
 
                         <p className="voice-history-text">{asset.text}</p>
 
                         {asset.audio_path && (
                             <audio
-                                controls
-                                src={buildFileUrl(asset.audio_path)}
-                                style={{ width: "100%", marginTop: "8px" }}
+                            controls
+                            src={buildFileUrl(asset.audio_path)}
+                            style={{ width: "100%", marginTop: "8px" }}
                             >
-                                お使いのブラウザはaudioタグをサポートしていません。
+                            お使いのブラウザはaudioタグをサポートしていません。
                             </audio>
                         )}
 
                         {asset.subtitle_png_path && (
                             <div className="scene-image-preview">
-                              <p className="scene-image-preview-label">字幕画像プレビュー</p>
-                              <img
+                            <p className="scene-image-preview-label">字幕画像プレビュー</p>
+                            <img
                                 src={buildFileUrl(asset.subtitle_png_path)}
                                 alt="字幕画像プレビュー"
                                 className="scene-preview-image"
-                              />
+                            />
                             </div>
                         )}
+
                         {form.audio_path && (
                             <div className="scene-audio-preview">
                             <p className="scene-image-preview-label">音声プレビュー</p>
@@ -226,20 +228,30 @@ export default function SceneModal({
                         )}
 
                         <div className="voice-history-actions">
-                        <button
+                            <button
                             type="button"
                             className="secondary-button"
                             onClick={() => onSelectVoiceAsset(asset.id)}
-                        >
+                            >
                             採用する
-                        </button>
+                            </button>
                         </div>
-                    </article>
+                        </article>
                     ))}
-                </div>
+                    </div>
                 )}
-            </div>
+                </div>
             </section>
+            ) : (
+            <section className="voice-panel">
+                <div className="voice-panel-header">
+                <h3>音声生成</h3>
+                </div>
+                <p className="voice-empty">
+                音声生成はシーン保存後に使えます。まずシーンを保存してください。
+                </p>
+            </section>
+            )}
 
           <textarea
             name="materials"
