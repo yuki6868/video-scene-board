@@ -522,10 +522,15 @@ function App() {
     }
 
     try {
+      // ① manifest + ファイル生成
       const result = await exportVideoDavinci(selectedVideo.id);
 
-      alert(`出力完了！\n\n保存先:\n${result.manifest_path}`);
       console.log("DaVinci Export:", result);
+
+      // ② ZIPダウンロード開始
+      const downloadUrl = getDavinciExportDownloadUrl(selectedVideo.id);
+      window.open(downloadUrl, "_blank");
+
     } catch (error) {
       console.error(error);
       alert(error.message || "出力に失敗しました");
@@ -1600,13 +1605,6 @@ function App() {
                 onClick={handleExportDavinci}
               >
                 DaVinci出力
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleDownloadDavinciZip}
-              >
-                ZIPダウンロード
               </button>
               <button
                 type="button"
