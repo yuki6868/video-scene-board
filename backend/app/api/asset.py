@@ -14,6 +14,7 @@ from app.models.video import Video
 from app.schemas.asset import AssetCreate, AssetResponse, AssetUpdate
 from app.schemas.task import TaskResponse
 from app.services.task_sync import recalculate_parent_task_status
+from app.services.task_order import get_next_task_sort_order
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -157,17 +158,19 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
         )
         .first()
     )
+    resolved_parent_task_id = parent_task.id if parent_task else None
 
     task = Task(
         video_id=asset.video_id,
         scene_id=asset.scene_id,
         asset_id=asset.id,
-        parent_task_id=parent_task.id if parent_task else None,
+        parent_task_id=resolved_parent_task_id,
         title=task_title,
         detail="\n".join(detail_lines),
         task_type=task_type,
         priority="中",
         status="未着手",
+        sort_order=get_next_task_sort_order(db, asset.video_id, resolved_parent_task_id),
     )
 
     db.add(task)

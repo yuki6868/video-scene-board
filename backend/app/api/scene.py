@@ -43,6 +43,7 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
     created_parent_tasks = {}
 
     created_tasks = {}
+    sibling_sort_counters = {}
 
     # 1. 親から順に作る
     for task_data in initial_tasks:
@@ -66,6 +67,10 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
             created_tasks[task_data["key"]] = exists
             continue
 
+        sibling_key = (new_scene.video_id, parent_task_id)
+        next_sort_order = sibling_sort_counters.get(sibling_key, 0)
+        sibling_sort_counters[sibling_key] = next_sort_order + 1
+
         new_task = Task(
             title=task_data["title"],
             task_type=task_data["task_type"],
@@ -74,6 +79,7 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
             priority=task_data["priority"],
             status=task_data["status"],
             parent_task_id=parent_task_id,
+            sort_order=next_sort_order,
         )
         db.add(new_task)
         db.flush()

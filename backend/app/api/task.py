@@ -12,6 +12,7 @@ from app.models.asset import Asset
 from app.models.task import Task
 from app.models.scene import Scene
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.services.task_order import get_next_task_sort_order
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -34,7 +35,7 @@ def list_tasks(
     if status is not None:
         query = query.filter(Task.status == status)
 
-    tasks = query.order_by(Task.id.desc()).all()
+    tasks = query.order_by(Task.sort_order.asc(), Task.id.asc()).all()
     return tasks
 
 
@@ -48,7 +49,16 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=TaskResponse, status_code=201)
 def create_task(task_in: TaskCreate, db: Session = Depends(get_db)):
-    task = Task(**task_in.model_dump())
+    task_data = task_in.model_dump()
+
+    if task_data.get("sort_order") is None:
+        task_data["sort_order"] = get_next_task_sort_order(
+            db,
+            video_id=task_data["video_id"],
+            parent_task_id=task_data.get("parent_task_id"),
+        )
+
+    task = Task(**task_data)
     db.add(task)
     db.flush()
 

@@ -17,7 +17,7 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    pass
+    sort_order: int | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -30,6 +30,7 @@ class TaskUpdate(BaseModel):
     task_type: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
+    sort_order: Optional[int] = None
 
 
 class TaskResponse(TaskBase):
@@ -37,6 +38,7 @@ class TaskResponse(TaskBase):
     created_at: datetime
     updated_at: datetime
     parent_task_id: int | None = None
+    sort_order: int
 
     class Config:
         from_attributes = True

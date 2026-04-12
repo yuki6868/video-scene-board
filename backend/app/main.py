@@ -62,6 +62,27 @@ def migrate_task_parent_column(engine):
             conn.execute(text("ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER"))
             conn.commit()
 
+def migrate_task_sort_order_column(engine):
+    with engine.connect() as conn:
+        columns = [row[1] for row in conn.execute(text("PRAGMA table_info(tasks)")).fetchall()]
+
+        if "sort_order" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0 NOT NULL"))
+            conn.commit()
+
+def backfill_task_sort_order(engine):
+    with Session(engine) as session:
+        tasks = session.query(Task).order_by(Task.id.asc()).all()
+        sibling_counters = {}
+
+        for task in tasks:
+            key = (task.video_id, task.parent_task_id)
+            next_order = sibling_counters.get(key, 0)
+            task.sort_order = next_order
+            sibling_counters[key] = next_order + 1
+
+        session.commit()
+
 def migrate_scene_columns():
     with engine.connect() as conn:
         statements = [
@@ -254,6 +275,8 @@ def backfill_task_asset_links():
 
 migrate_voice_assets_table(engine)
 Base.metadata.create_all(bind=engine)
+migrate_task_parent_column(engine)
+migrate_task_sort_order_column(engine)
 migrate_task_parent_column(engine)
 migrate_existing_tasks_to_parent(engine)
 remove_duplicate_tasks(engine)

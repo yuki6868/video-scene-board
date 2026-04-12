@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 
 import { DndContext, useDraggable, useDroppable, closestCenter, DragOverlay} from "@dnd-kit/core";
@@ -262,6 +262,108 @@ function getStatusLabel(status) {
     default:
       return status;
   }
+}
+
+function TaskTreeNode({
+  task,
+  expandedTaskIds,
+  toggleTaskExpanded,
+  handleUpdateTaskStatus,
+  handleDeleteTask,
+  scenes,
+}) {
+  const relatedScene = scenes.find((scene) => scene.id === task.scene_id);
+  const hasChildren = task.children && task.children.length > 0;
+
+  return (
+    <div className={hasChildren ? "task-tree-node" : "task-child-card"}>
+      <div className={hasChildren ? "task-card-header" : "task-child-header"}>
+        <div className={hasChildren ? "task-title-row task-title-row-parent" : "task-child-title-wrap"}>
+          {hasChildren ? (
+            <button
+              type="button"
+              className="task-expand-button"
+              onClick={() => toggleTaskExpanded(task.id)}
+            >
+              {expandedTaskIds[task.id] ? "▼" : "▶"}
+            </button>
+          ) : (
+            <span className="task-child-bullet">•</span>
+          )}
+
+          <span className={hasChildren ? "" : "task-child-title"}>
+            {task.title}
+          </span>
+        </div>
+
+        <div className={hasChildren ? "task-badge-group" : "task-child-badges"}>
+          <span className={getPriorityClassName(task.priority)}>
+            優先度: {task.priority}
+          </span>
+          <span className={getTaskStatusClassName(task.status)}>
+            {task.status}
+          </span>
+        </div>
+      </div>
+
+      <div className="task-meta">
+        <span className="task-meta-item">
+          種別: {task.task_type || "未設定"}
+        </span>
+        <span className="task-meta-item">
+          対象:{" "}
+          {relatedScene
+            ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
+            : "動画全体"}
+        </span>
+      </div>
+
+      <p className={hasChildren ? "task-detail" : "task-child-detail"}>
+        {task.detail || "詳細は未設定です。"}
+      </p>
+
+      <div className={hasChildren ? "task-actions task-group-actions" : "task-actions task-child-actions"}>
+        {task.status !== "未着手" && (
+          <button type="button" onClick={() => handleUpdateTaskStatus(task, "未着手")}>
+            未着手
+          </button>
+        )}
+        {task.status !== "作業中" && (
+          <button type="button" onClick={() => handleUpdateTaskStatus(task, "作業中")}>
+            作業中
+          </button>
+        )}
+        {task.status !== "完了" && (
+          <button type="button" onClick={() => handleUpdateTaskStatus(task, "完了")}>
+            完了
+          </button>
+        )}
+        <button
+          type="button"
+          className="task-delete-button"
+          onClick={() => handleDeleteTask(task.id)}
+        >
+          削除
+        </button>
+      </div>
+
+      {hasChildren && expandedTaskIds[task.id] && (
+        <div className="task-children">
+          {task.children.map((child) => (
+            <TaskTreeNode
+              key={child.id}
+              task={child}
+              expandedTaskIds={expandedTaskIds}
+              toggleTaskExpanded={toggleTaskExpanded}
+              handleUpdateTaskStatus={handleUpdateTaskStatus}
+              handleDeleteTask={handleDeleteTask}
+              scenes={scenes}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function getDisplayText(value, fallback = "未設定") {
@@ -787,12 +889,12 @@ function App() {
     }
   }
 
-  function toggleTaskExpanded(taskId) {
+  const toggleTaskExpanded = useCallback((taskId) => {
     setExpandedTaskIds((prev) => ({
       ...prev,
       [taskId]: !prev[taskId],
     }));
-  }
+  }, []);
 
   // sceneForm → API payload に変換
   const buildScenePayload = (form) => ({
@@ -1254,108 +1356,6 @@ function App() {
       create_mode: prev.create_mode,
       parent_task_id: prev.create_mode === "child" ? prev.parent_task_id : "",
     }));
-  }
-
-  function TaskTreeNode({
-    task,
-    expandedTaskIds,
-    toggleTaskExpanded,
-    handleUpdateTaskStatus,
-    handleDeleteTask,
-    scenes,
-  }) {
-    const relatedScene = scenes.find((scene) => scene.id === task.scene_id);
-    const hasChildren = task.children && task.children.length > 0;
-
-    return (
-      <div className={hasChildren ? "task-tree-node" : "task-child-card"}>
-        <div className={hasChildren ? "task-card-header" : "task-child-header"}>
-          <div className={hasChildren ? "task-title-row task-title-row-parent" : "task-child-title-wrap"}>
-            {hasChildren ? (
-              <button
-                type="button"
-                className="task-expand-button"
-                onClick={() => toggleTaskExpanded(task.id)}
-              >
-                {expandedTaskIds[task.id] ? "▼" : "▶"}
-              </button>
-            ) : (
-              <span className="task-child-bullet">•</span>
-            )}
-
-            <span className={hasChildren ? "" : "task-child-title"}>
-              {task.title}
-            </span>
-          </div>
-
-          <div className={hasChildren ? "task-badge-group" : "task-child-badges"}>
-            <span className={getPriorityClassName(task.priority)}>
-              優先度: {task.priority}
-            </span>
-            <span className={getTaskStatusClassName(task.status)}>
-              {task.status}
-            </span>
-          </div>
-        </div>
-
-        <div className="task-meta">
-          <span className="task-meta-item">
-            種別: {task.task_type || "未設定"}
-          </span>
-          <span className="task-meta-item">
-            対象:{" "}
-            {relatedScene
-              ? `Scene #${relatedScene.position + 1} ${relatedScene.title}`
-              : "動画全体"}
-          </span>
-        </div>
-
-        <p className={hasChildren ? "task-detail" : "task-child-detail"}>
-          {task.detail || "詳細は未設定です。"}
-        </p>
-
-        <div className={hasChildren ? "task-actions task-group-actions" : "task-actions task-child-actions"}>
-          {task.status !== "未着手" && (
-            <button type="button" onClick={() => handleUpdateTaskStatus(task, "未着手")}>
-              未着手
-            </button>
-          )}
-          {task.status !== "作業中" && (
-            <button type="button" onClick={() => handleUpdateTaskStatus(task, "作業中")}>
-              作業中
-            </button>
-          )}
-          {task.status !== "完了" && (
-            <button type="button" onClick={() => handleUpdateTaskStatus(task, "完了")}>
-              完了
-            </button>
-          )}
-          <button
-            type="button"
-            className="task-delete-button"
-            onClick={() => handleDeleteTask(task.id)}
-          >
-            削除
-          </button>
-        </div>
-
-        {hasChildren && expandedTaskIds[task.id] && (
-          <div className="task-children">
-            {task.children.map((child) => (
-              <TaskTreeNode
-                key={child.id}
-                task={child}
-                expandedTaskIds={expandedTaskIds}
-                toggleTaskExpanded={toggleTaskExpanded}
-                handleUpdateTaskStatus={handleUpdateTaskStatus}
-                handleDeleteTask={handleDeleteTask}
-                scenes={scenes}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
   }
 
   const taskTree = useMemo(() => {
