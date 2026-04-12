@@ -1936,3 +1936,16 @@
   color: #6b7280;
   font-size: 14px;
 }
+
+.audience-age-summary {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #374151;
+  text-align: center;
+}
+
+.audience-age-chart-wrap {
+  width: 100%;
+  height: 240px;
+  flex-shrink: 0;
+}

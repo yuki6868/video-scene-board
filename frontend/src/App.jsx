@@ -40,6 +40,7 @@ import { exportVideoDavinci, getDavinciExportDownloadUrl, } from "./api/videoApi
 import VideoAnalyticsPanel from "./components/analytics/VideoAnalyticsPanel";
 import { fetchVideoAnalyticsSummary } from "./api/youtubeAnalyticsApi";
 import AudienceGenderChart from "./components/audience/AudienceGenderChart";
+import AudienceAgeChart from "./components/audience/AudienceAgeChart";
 
 const initialSceneForm = {
   title: "",
@@ -185,19 +186,6 @@ function formatAnalyticsNumber(value) {
 function formatAnalyticsPercent(value) {
   if (value == null) return "-";
   return `${(value * 100).toFixed(2)}%`;
-}
-
-function getMainAudienceAge(ageDistribution) {
-  if (!ageDistribution) return "-";
-
-  const entries = Object.entries(ageDistribution);
-  if (entries.length === 0) return "-";
-
-  const [age] = entries.reduce((max, current) => {
-    return current[1] > max[1] ? current : max;
-  });
-
-  return age;
 }
 
 function DraggableTaskCard({ task, children }) {
@@ -1994,16 +1982,7 @@ function App() {
               ) : (
                 <div className="audience-summary-grid">
                   <AudienceGenderChart genderRatio={selectedVideoAudience.gender_ratio} />
-
-                  <div className="audience-summary-card">
-                    <div className="audience-summary-title">年齢層</div>
-                    <div className="audience-summary-values">
-                      <span>主視聴層: {getMainAudienceAge(selectedVideoAudience.age_distribution)}</span>
-                      <span>18-24: {selectedVideoAudience.age_distribution?.["18-24"] ?? 0}%</span>
-                      <span>25-34: {selectedVideoAudience.age_distribution?.["25-34"] ?? 0}%</span>
-                      <span>35-44: {selectedVideoAudience.age_distribution?.["35-44"] ?? 0}%</span>
-                    </div>
-                  </div>
+                  <AudienceAgeChart ageDistribution={selectedVideoAudience.age_distribution} />
                 </div>
               )}
             </section>
