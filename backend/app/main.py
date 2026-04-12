@@ -14,6 +14,7 @@ from app.models.asset import Asset
 from app.models.scene import Scene
 from app.models.task import Task
 from app.models.video import Video
+from app.models.youtube_analytics_daily import YouTubeAnalyticsDaily
 from app.models.voice_asset import VoiceAsset
 
 def column_exists(conn, table, column):
