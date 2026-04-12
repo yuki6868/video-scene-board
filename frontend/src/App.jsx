@@ -39,6 +39,7 @@ import SceneModal from "./components/modals/SceneModal";
 import { exportVideoDavinci, getDavinciExportDownloadUrl, } from "./api/videoApi";
 import VideoAnalyticsPanel from "./components/analytics/VideoAnalyticsPanel";
 import { fetchVideoAnalyticsSummary } from "./api/youtubeAnalyticsApi";
+import AudienceGenderChart from "./components/audience/AudienceGenderChart";
 
 const initialSceneForm = {
   title: "",
@@ -1992,14 +1993,7 @@ function App() {
                 </div>
               ) : (
                 <div className="audience-summary-grid">
-                  <div className="audience-summary-card">
-                    <div className="audience-summary-title">性別比率</div>
-                    <div className="audience-summary-values">
-                      <span>男性: {selectedVideoAudience.gender_ratio?.male ?? 0}%</span>
-                      <span>女性: {selectedVideoAudience.gender_ratio?.female ?? 0}%</span>
-                      <span>その他: {selectedVideoAudience.gender_ratio?.other ?? 0}%</span>
-                    </div>
-                  </div>
+                  <AudienceGenderChart genderRatio={selectedVideoAudience.gender_ratio} />
 
                   <div className="audience-summary-card">
                     <div className="audience-summary-title">年齢層</div>
