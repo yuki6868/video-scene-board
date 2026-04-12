@@ -279,6 +279,60 @@ function getSceneStatusClassName(status) {
   }
 }
 
+const dummyAudienceData = {
+  1: {
+    gender_ratio: {
+      male: 62,
+      female: 34,
+      other: 4,
+    },
+    age_distribution: {
+      "13-17": 8,
+      "18-24": 26,
+      "25-34": 31,
+      "35-44": 19,
+      "45-54": 10,
+      "55-64": 4,
+      "65+": 2,
+    },
+    metric_date: "2026-04-12",
+  },
+  2: {
+    gender_ratio: {
+      male: 48,
+      female: 50,
+      other: 2,
+    },
+    age_distribution: {
+      "13-17": 5,
+      "18-24": 30,
+      "25-34": 40,
+      "35-44": 15,
+      "45-54": 6,
+      "55-64": 3,
+      "65+": 1,
+    },
+    metric_date: "2026-04-12",
+  },
+  3: {
+    gender_ratio: {
+      male: 70,
+      female: 28,
+      other: 2,
+    },
+    age_distribution: {
+      "13-17": 10,
+      "18-24": 35,
+      "25-34": 25,
+      "35-44": 15,
+      "45-54": 8,
+      "55-64": 5,
+      "65+": 2,
+    },
+    metric_date: "2026-04-12",
+  },
+};
+
 function formatDateTime(value) {
   if (!value) return "未設定";
 
@@ -475,6 +529,7 @@ function App() {
   const [editingVideoId, setEditingVideoId] = useState(null);
   const [isDavinciExporting, setIsDavinciExporting] = useState(false);
   const [videoAnalyticsSummaries, setVideoAnalyticsSummaries] = useState({});
+  const [videoAudienceSummaries, setVideoAudienceSummaries] = useState({});
 
   const initialNewTask = {
     create_mode: "section",
@@ -555,6 +610,11 @@ function App() {
       scene_id: task.scene_id,
     });
   }
+
+  const loadVideoAudienceSummaries = async () => {
+    // 今はダミー
+    setVideoAudienceSummaries(dummyAudienceData);
+  };
 
   async function loadVideoAnalyticsSummaries(videoList) {
     try {
@@ -954,6 +1014,11 @@ function App() {
   useEffect(() => {
     loadVideos();
   }, []);
+
+  useEffect(() => {
+    loadVideoAudienceSummaries();
+  }, []);
+  console.log(videoAudienceSummaries);
 
   useEffect(() => {
     if (!selectedVideoId) {
