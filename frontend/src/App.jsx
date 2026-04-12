@@ -1843,6 +1843,8 @@ function App() {
     }
 
     const seeds = splitVideoScriptToSceneSeeds(videoForm);
+    window.splitVideoScriptToSceneSeeds = splitVideoScriptToSceneSeeds;
+    window.inferSectionTypeFromTitle = inferSectionTypeFromTitle;
 
     if (seeds.length === 0) {
       alert("台本または構成が空です");
@@ -2691,6 +2693,8 @@ function App() {
         onChange={handleVideoChange}
         onThumbnailFileChange={handleThumbnailFileChange}
         editingVideoId={editingVideoId}
+        splitVideoScriptToSceneSeeds={splitVideoScriptToSceneSeeds}
+        inferSectionTypeFromTitle={inferSectionTypeFromTitle}
       />
 
     </div>

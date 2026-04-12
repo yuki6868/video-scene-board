@@ -1984,3 +1984,41 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.scene-preview {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #d8dbe2;
+  border-radius: 12px;
+  background: #ffffff;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.scene-preview-item {
+  border-bottom: 1px solid #eee;
+  padding: 8px 0;
+}
+
+.scene-preview-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.scene-preview-type {
+  font-size: 12px;
+  color: #666;
+}
+
+.scene-preview-script {
+  font-size: 12px;
+  white-space: pre-wrap;
+  margin-top: 4px;
+}
+
+.scene-preview-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}

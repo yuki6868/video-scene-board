@@ -9,9 +9,12 @@ function VideoModal({
   onChange,
   onThumbnailFileChange,
   editingVideoId,
+  splitVideoScriptToSceneSeeds,
+  inferSectionTypeFromTitle,
 }) {
   const [showSceneGenerateActions, setShowSceneGenerateActions] = useState(false);
-
+  const [previewScenes, setPreviewScenes] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
   if (!isOpen) return null;
 
   const isUploadMode = (form.thumbnail_input_type || "upload") === "upload";
@@ -23,6 +26,27 @@ function VideoModal({
   const handleSelectGenerateMode = (mode) => {
     setShowSceneGenerateActions(false);
     onGenerateScenesFromScript?.(mode);
+  };
+
+  const handlePreview = () => {
+    if (!form.script && !form.structure) {
+      alert("台本または構成を入力してください");
+      return;
+    }
+
+    const seeds = splitVideoScriptToSceneSeeds(form);
+
+    const enriched = seeds.map((seed, i) => ({
+      ...seed,
+      section_type: inferSectionTypeFromTitle(
+        seed.title,
+        i,
+        seeds.length
+      ),
+    }));
+
+    setPreviewScenes(enriched);
+    setShowPreview(true);
   };
 
   return (
@@ -318,6 +342,53 @@ function VideoModal({
             </div>
           ) : null}
 
+          {showPreview && (
+            <div className="scene-preview">
+              <h3>生成プレビュー</h3>
+
+              {previewScenes.map((scene, index) => (
+                <div key={index} className="scene-preview-item">
+                  <div className="scene-preview-header">
+                    <strong>{scene.title}</strong>
+                    <span className="scene-preview-type">
+                      {scene.section_type}
+                    </span>
+                  </div>
+
+                  <pre className="scene-preview-script">
+                    {scene.script}
+                  </pre>
+                </div>
+              ))}
+
+              <div className="scene-preview-actions">
+                <button
+                  type="button"
+                  onClick={() => onGenerateScenesFromScript("append")}
+                  className="secondary-button"
+                >
+                  追加
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onGenerateScenesFromScript("replace")}
+                  className="submit-button"
+                >
+                  作り直し
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="secondary-button"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="modal-actions">
             <button type="button" onClick={onClose} className="secondary-button">
               キャンセル
@@ -326,10 +397,10 @@ function VideoModal({
             {editingVideoId !== null ? (
               <button
                 type="button"
-                onClick={handleClickGenerate}
+                onClick={handlePreview}
                 className="secondary-button"
               >
-                台本からシーン生成
+                台本分割プレビュー
               </button>
             ) : null}
 
