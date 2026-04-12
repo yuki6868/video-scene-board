@@ -1964,3 +1964,23 @@
   min-height: 240px;
   flex-shrink: 0;
 }
+
+.video-scene-generate-actions {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #d8dbe2;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.video-scene-generate-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.video-scene-generate-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

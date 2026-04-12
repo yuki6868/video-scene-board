@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 function VideoModal({
   isOpen,
   onClose,
@@ -8,16 +10,34 @@ function VideoModal({
   onThumbnailFileChange,
   editingVideoId,
 }) {
+  const [showSceneGenerateActions, setShowSceneGenerateActions] = useState(false);
+
   if (!isOpen) return null;
 
   const isUploadMode = (form.thumbnail_input_type || "upload") === "upload";
+
+  const handleClickGenerate = () => {
+    setShowSceneGenerateActions((prev) => !prev);
+  };
+
+  const handleSelectGenerateMode = (mode) => {
+    setShowSceneGenerateActions(false);
+    onGenerateScenesFromScript?.(mode);
+  };
 
   return (
     <div className="modal-overlay">
       <div className="modal-content video-modal-content">
         <div className="modal-header">
           <h2>{editingVideoId !== null ? "動画を編集" : "動画を追加"}</h2>
-          <button type="button" className="modal-close" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={() => {
+              setShowSceneGenerateActions(false);
+              onClose();
+            }}
+          >
             ×
           </button>
         </div>
@@ -194,7 +214,7 @@ function VideoModal({
                 name="structure"
                 value={form.structure || ""}
                 onChange={onChange}
-                placeholder={"例:\n・導入\n・本題\n・オチ"}
+                placeholder={"例:\n導入\n\n本題\n\nオチ"}
                 rows="5"
               />
             </div>
@@ -205,8 +225,10 @@ function VideoModal({
                 name="script"
                 value={form.script || ""}
                 onChange={onChange}
-                placeholder="そのまま読む台本を書いてください"
-                rows="8"
+                placeholder={
+                  "空行ごとに1シーンになります。\n\n例:\n導入｜今日はクーリングオフの話です\nまず結論から言います\n\n本題｜全部の契約で使えるわけではありません\n訪問販売などが対象です\n\nオチ｜迷ったら契約書面を確認しましょう"
+                }
+                rows="10"
               />
             </div>
 
@@ -232,7 +254,11 @@ function VideoModal({
 
             <div className="form-group">
               <label>画面比率</label>
-              <select name="aspect_ratio" value={form.aspect_ratio} onChange={onChange}>
+              <select
+                name="aspect_ratio"
+                value={form.aspect_ratio}
+                onChange={onChange}
+              >
                 <option value="9:16">9:16（ショート動画）</option>
                 <option value="16:9">16:9（通常動画）</option>
               </select>
@@ -261,6 +287,37 @@ function VideoModal({
             </div>
           </div>
 
+          {editingVideoId !== null && showSceneGenerateActions ? (
+            <div className="video-scene-generate-actions">
+              <p className="video-scene-generate-title">
+                台本からシーン生成の方法を選んでください
+              </p>
+              <div className="video-scene-generate-buttons">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => handleSelectGenerateMode("append")}
+                >
+                  追加
+                </button>
+                <button
+                  type="button"
+                  className="submit-button"
+                  onClick={() => handleSelectGenerateMode("replace")}
+                >
+                  作り直し
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => handleSelectGenerateMode("cancel")}
+                >
+                  中止
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="modal-actions">
             <button type="button" onClick={onClose} className="secondary-button">
               キャンセル
@@ -269,7 +326,7 @@ function VideoModal({
             {editingVideoId !== null ? (
               <button
                 type="button"
-                onClick={onGenerateScenesFromScript}
+                onClick={handleClickGenerate}
                 className="secondary-button"
               >
                 台本からシーン生成

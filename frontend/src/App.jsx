@@ -90,6 +90,23 @@ const initialVideoForm = {
   frame_height: 1920,
 };
 
+function normalizeSceneBlockTitle(rawTitle, fallbackIndex) {
+  const title = (rawTitle || "").trim();
+  return title || `シーン${fallbackIndex + 1}`;
+}
+
+function inferSectionTypeFromTitle(title, index, totalCount) {
+  const text = (title || "").trim();
+
+  if (/導入|イントロ|つかみ|冒頭/.test(text)) return "導入";
+  if (/オチ|結論|まとめ|締め|エンディング/.test(text)) return "オチ";
+  if (/本題|展開|解説|詳細|中盤/.test(text)) return "展開";
+
+  if (index === 0) return "導入";
+  if (index === totalCount - 1) return "オチ";
+  return "展開";
+}
+
 function splitVideoScriptToSceneSeeds(videoForm) {
   const sourceText =
     (videoForm.script && videoForm.script.trim()) ||
@@ -100,47 +117,92 @@ function splitVideoScriptToSceneSeeds(videoForm) {
     return [];
   }
 
-  return sourceText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const separators = ["｜", "|", "：", ":"];
-      let title = `シーン${index + 1}`;
-      let script = line;
+  const blocks = sourceText
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
 
-      for (const separator of separators) {
-        if (line.includes(separator)) {
-          const [left, ...rest] = line.split(separator);
-          const leftText = left.trim();
-          const rightText = rest.join(separator).trim();
+  return blocks.map((block, index) => {
+    const lines = block
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
 
-          if (leftText && rightText) {
-            title = leftText;
-            script = rightText;
-            break;
-          }
+    const firstLine = lines[0] || "";
+    const body = lines.slice(1).join("\n").trim();
+
+    let title = "";
+    let script = "";
+
+    const separators = ["｜", "|", "：", ":"];
+    let matched = false;
+
+    for (const separator of separators) {
+      if (firstLine.includes(separator)) {
+        const [left, ...rest] = firstLine.split(separator);
+        const leftText = left.trim();
+        const rightText = rest.join(separator).trim();
+
+        if (leftText) {
+          title = leftText;
+          script = [rightText, body].filter(Boolean).join("\n").trim();
+          matched = true;
+          break;
         }
       }
+    }
 
-      return {
-        title,
-        script,
-        materials: "",
-        section_type: "",
-        status: "未着手",
-        duration_seconds: null,
-        audio_path: "",
-        character_name: "",
-        character_expression: "",
-        background_path: "",
-        background_fit_mode: "cover",
-        se_path: "",
-        telop: "",
-        direction: "",
-        edit_note: "",
-      };
-    });
+    if (!matched) {
+      title = normalizeSceneBlockTitle(firstLine, index);
+      script = lines.slice(1).join("\n").trim();
+
+      if (!script) {
+        script = firstLine;
+      }
+    }
+
+    return {
+      title,
+      script,
+      materials: "",
+      section_type: "",
+      status: "未着手",
+      duration_seconds: null,
+      audio_path: "",
+      character_name: "",
+      character_expression: "",
+      background_path: "",
+      background_fit_mode: "cover",
+      se_path: "",
+      telop: "",
+      direction: "",
+      edit_note: "",
+    };
+  });
+}
+
+function buildVideoPayload(videoForm) {
+  return {
+    title: videoForm.title.trim(),
+    thumbnail_url: videoForm.thumbnail_url?.trim() || "",
+    description: videoForm.description?.trim() || "",
+    tags: videoForm.tags?.trim() || "",
+    video_path: videoForm.video_path?.trim() || "",
+    youtube_url: videoForm.youtube_url?.trim() || "",
+    youtube_id: videoForm.youtube_id?.trim() || "",
+    concept: videoForm.concept?.trim() || "",
+    target: videoForm.target?.trim() || "",
+    goal: videoForm.goal?.trim() || "",
+    structure: videoForm.structure?.trim() || "",
+    script: videoForm.script?.trim() || "",
+    memo: videoForm.memo?.trim() || "",
+    published_at: videoForm.published_at || null,
+    status: videoForm.status || "draft",
+    analytics_source: videoForm.analytics_source || "mock",
+    aspect_ratio: videoForm.aspect_ratio || "9:16",
+    frame_width: Number(videoForm.frame_width) || 1080,
+    frame_height: Number(videoForm.frame_height) || 1920,
+  };
 }
 
 const VOICE_STYLE_OPTIONS = [
@@ -1749,27 +1811,7 @@ function App() {
         return;
       }
 
-      const payload = {
-        title: videoForm.title.trim(),
-        thumbnail_url: videoForm.thumbnail_url?.trim() || "",
-        description: videoForm.description?.trim() || "",
-        tags: videoForm.tags?.trim() || "",
-        video_path: videoForm.video_path?.trim() || "",
-        youtube_url: videoForm.youtube_url?.trim() || "",
-        youtube_id: videoForm.youtube_id?.trim() || "",
-        concept: videoForm.concept?.trim() || "",
-        target: videoForm.target?.trim() || "",
-        goal: videoForm.goal?.trim() || "",
-        structure: videoForm.structure?.trim() || "",
-        script: videoForm.script?.trim() || "",
-        memo: videoForm.memo?.trim() || "",
-        published_at: videoForm.published_at || null,
-        status: videoForm.status || "draft",
-        analytics_source: videoForm.analytics_source || "mock",
-        aspect_ratio: videoForm.aspect_ratio || "9:16",
-        frame_width: Number(videoForm.frame_width) || 1080,
-        frame_height: Number(videoForm.frame_height) || 1920,
-      };
+      const payload = buildVideoPayload(videoForm);
 
       if (editingVideoId !== null) {
         await updateVideo(editingVideoId, payload);
@@ -1785,9 +1827,18 @@ function App() {
     }
   };
 
-  const handleGenerateScenesFromVideoScript = async () => {
+  const handleGenerateScenesFromVideoScript = async (mode) => {
+    if (mode === "cancel") {
+      return;
+    }
+
     if (!selectedVideoId) {
       alert("先に動画を選択してください");
+      return;
+    }
+
+    if (!videoForm.title.trim()) {
+      alert("タイトルを入力してください");
       return;
     }
 
@@ -1798,21 +1849,40 @@ function App() {
       return;
     }
 
-    const ok = window.confirm(
-      `${seeds.length}件のシーンを追加します。よろしいですか？`
-    );
-    if (!ok) return;
-
     try {
+      // 先に動画自体を保存して、詳細欄も最新化する
+      const payload = buildVideoPayload(videoForm);
+      await updateVideo(selectedVideoId, payload);
+      await loadVideos();
+
+      const shouldReplaceExisting = mode === "replace";
+      const basePosition = shouldReplaceExisting ? 0 : scenes.length;
+      const totalCount = seeds.length;
+
+      if (shouldReplaceExisting) {
+        for (const scene of scenes) {
+          await deleteScene(scene.id);
+        }
+      }
+
       for (let i = 0; i < seeds.length; i += 1) {
+        const seed = seeds[i];
+        const sectionType = inferSectionTypeFromTitle(
+          seed.title,
+          i,
+          totalCount
+        );
+
         await createScene(selectedVideoId, {
-          ...seeds[i],
-          position: scenes.length + i,
+          ...seed,
+          position: basePosition + i,
+          section_type: sectionType,
         });
       }
 
       await loadScenesByVideo(selectedVideoId);
       await loadTasksByVideo(selectedVideoId);
+      await loadVideos();
 
       alert(`${seeds.length}件のシーンを作成しました`);
     } catch (error) {
