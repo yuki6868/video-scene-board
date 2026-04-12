@@ -1829,11 +1829,13 @@
 }
 
 .audience-empty {
-  padding: 16px;
+  padding: 20px;
   border-radius: 12px;
   background: #f9fafb;
   color: #6b7280;
   font-size: 14px;
+  border: 1px dashed #d1d5db;
+  text-align: center;
 }
 
 .audience-summary-grid {

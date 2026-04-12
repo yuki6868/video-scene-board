@@ -569,6 +569,22 @@ function App() {
     return videoAudienceSummaries[selectedVideo.id] ?? null;
   }, [selectedVideo, videoAudienceSummaries]);
 
+  const hasAudienceData = useMemo(() => {
+    if (!selectedVideoAudience) return false;
+
+    const gender = selectedVideoAudience.gender_ratio;
+    const age = selectedVideoAudience.age_distribution;
+
+    const hasGender =
+      (gender?.male ?? 0) > 0 ||
+      (gender?.female ?? 0) > 0 ||
+      (gender?.other ?? 0) > 0;
+
+    const hasAge = Object.values(age ?? {}).some((value) => value > 0);
+
+    return hasGender || hasAge;
+  }, [selectedVideoAudience]);
+
   const topVideos = useMemo(() => {
     return videos
       .map((video) => ({
@@ -584,27 +600,15 @@ function App() {
   }, [videos, videoAnalyticsSummaries]);
 
   const loadVideos = async () => {
-    try {
-      const data = await fetchVideos();
-      setVideos(data);
-      await loadVideoAnalyticsSummaries(data);
+    const data = await fetchVideos();
+    setVideos(data);
 
-      if (data.length === 0) {
-        setSelectedVideoId(null);
-        setScenes([]);
-        setTasks([]);
-        setTasksError("");
-        return;
-      }
-
-      setSelectedVideoId((prev) => {
-        const exists = data.some((video) => video.id === prev);
-        return exists ? prev : data[0].id;
-      });
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "動画一覧の取得に失敗しました");
+    if (data.length > 0 && !selectedVideoId) {
+      setSelectedVideoId(data[0].id);
     }
+
+    await loadVideoAnalyticsSummaries(data);
+    await loadVideoAudienceSummaries(data);
   };
 
   function handleStartEdit(task) {
@@ -618,9 +622,72 @@ function App() {
     });
   }
 
-  const loadVideoAudienceSummaries = async () => {
-    // 今はダミー
-    setVideoAudienceSummaries(dummyAudienceData);
+  const loadVideoAudienceSummaries = async (videoList) => {
+    const summaries = {};
+
+    videoList.forEach((video, index) => {
+      if (index === 0) {
+        summaries[video.id] = {
+          gender_ratio: {
+            male: 62,
+            female: 34,
+            other: 4,
+          },
+          age_distribution: {
+            "13-17": 8,
+            "18-24": 26,
+            "25-34": 31,
+            "35-44": 19,
+            "45-54": 10,
+            "55-64": 4,
+            "65+": 2,
+          },
+          metric_date: "2026-04-12",
+        };
+        return;
+      }
+
+      if (index === 1) {
+        summaries[video.id] = {
+          gender_ratio: {
+            male: 0,
+            female: 0,
+            other: 0,
+          },
+          age_distribution: {
+            "13-17": 0,
+            "18-24": 0,
+            "25-34": 0,
+            "35-44": 0,
+            "45-54": 0,
+            "55-64": 0,
+            "65+": 0,
+          },
+          metric_date: "2026-04-12",
+        };
+        return;
+      }
+
+      summaries[video.id] = {
+        gender_ratio: {
+          male: 55 + (index % 3) * 8,
+          female: 40 - (index % 3) * 6,
+          other: 5,
+        },
+        age_distribution: {
+          "13-17": 6,
+          "18-24": 24,
+          "25-34": 34,
+          "35-44": 18,
+          "45-54": 10,
+          "55-64": 5,
+          "65+": 3,
+        },
+        metric_date: "2026-04-12",
+      };
+    });
+
+    setVideoAudienceSummaries(summaries);
   };
 
   async function loadVideoAnalyticsSummaries(videoList) {
@@ -1021,11 +1088,6 @@ function App() {
   useEffect(() => {
     loadVideos();
   }, []);
-
-  useEffect(() => {
-    loadVideoAudienceSummaries();
-  }, []);
-  console.log(videoAudienceSummaries);
 
   useEffect(() => {
     if (!selectedVideoId) {
@@ -1977,7 +2039,11 @@ function App() {
 
               {!selectedVideoAudience ? (
                 <div className="audience-empty">
-                  視聴者属性データはまだありません
+                  この動画の視聴者属性データはまだありません
+                </div>
+              ) : !hasAudienceData ? (
+                <div className="audience-empty">
+                  視聴者属性データはありますが、まだ表示できる集計値がありません
                 </div>
               ) : (
                 <div className="audience-summary-grid">
