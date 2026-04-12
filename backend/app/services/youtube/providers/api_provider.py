@@ -8,4 +8,6 @@ class ApiYouTubeAnalyticsProvider(BaseYouTubeAnalyticsProvider):
         start_date: str,
         end_date: str,
     ) -> list[dict]:
-        raise NotImplementedError("YouTube API provider is not implemented yet.")
+        raise ValueError(
+            "実APIモードが選択されていますが、YouTube Analytics API連携はまだ未実装です。"
+        )
