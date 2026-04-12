@@ -87,6 +87,10 @@ export default function VideoAnalyticsPanel({ selectedVideo }) {
           </p>
         </div>
 
+        <p className="form-help-text">
+          (現在の取得元: {analytics[analytics.length - 1]?.data_source || selectedVideo.analytics_source || "mock"})
+        </p>
+
         <button
           type="button"
           className="primary-button"
