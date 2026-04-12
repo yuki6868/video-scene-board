@@ -80,6 +80,9 @@ const initialVideoForm = {
   concept: "",
   target: "",
   goal: "",
+  structure: "",
+  script: "",
+  memo: "",
   status: "draft",
   analytics_source: "mock",
   aspect_ratio: "9:16",
@@ -1323,29 +1326,32 @@ function App() {
   const openEditVideoModal = () => {
     if (!selectedVideo) return;
 
-    setVideoForm({
-      title: selectedVideo.title || "",
-      thumbnail_url: selectedVideo.thumbnail_url || "",
-      thumbnail_input_type: selectedVideo.thumbnail_url?.startsWith("http")
-        ? "url"
-        : "upload",
-      description: selectedVideo.description || "",
-      tags: selectedVideo.tags || "",
-      video_path: selectedVideo.video_path || "",
-      youtube_url: selectedVideo.youtube_url || "",
-      youtube_id: selectedVideo.youtube_id || "",
-      analytics_source: selectedVideo.analytics_source || "mock",
-      published_at: selectedVideo.published_at
-        ? String(selectedVideo.published_at).slice(0, 16)
-        : "",
-      concept: selectedVideo.concept || "",
-      target: selectedVideo.target || "",
-      goal: selectedVideo.goal || "",
-      status: selectedVideo.status || "draft",
-      aspect_ratio: selectedVideo.aspect_ratio || "9:16",
-      frame_width: selectedVideo.frame_width ?? 1080,
-      frame_height: selectedVideo.frame_height ?? 1920,
-    });
+      setVideoForm({
+        title: selectedVideo.title || "",
+        thumbnail_url: selectedVideo.thumbnail_url || "",
+        thumbnail_input_type: selectedVideo.thumbnail_url?.startsWith("http")
+          ? "url"
+          : "upload",
+        description: selectedVideo.description || "",
+        tags: selectedVideo.tags || "",
+        video_path: selectedVideo.video_path || "",
+        youtube_url: selectedVideo.youtube_url || "",
+        youtube_id: selectedVideo.youtube_id || "",
+        analytics_source: selectedVideo.analytics_source || "mock",
+        published_at: selectedVideo.published_at
+          ? String(selectedVideo.published_at).slice(0, 16)
+          : "",
+        concept: selectedVideo.concept || "",
+        target: selectedVideo.target || "",
+        goal: selectedVideo.goal || "",
+        structure: selectedVideo.structure || "",
+        script: selectedVideo.script || "",
+        memo: selectedVideo.memo || "",
+        status: selectedVideo.status || "draft",
+        aspect_ratio: selectedVideo.aspect_ratio || "9:16",
+        frame_width: selectedVideo.frame_width ?? 1080,
+        frame_height: selectedVideo.frame_height ?? 1920,
+      });
 
     setEditingVideoId(selectedVideo.id);
     setIsVideoModalOpen(true);
@@ -1701,6 +1707,9 @@ function App() {
         concept: videoForm.concept?.trim() || "",
         target: videoForm.target?.trim() || "",
         goal: videoForm.goal?.trim() || "",
+        structure: videoForm.structure?.trim() || "",
+        script: videoForm.script?.trim() || "",
+        memo: videoForm.memo?.trim() || "",
         published_at: videoForm.published_at || null,
         status: videoForm.status || "draft",
         analytics_source: videoForm.analytics_source || "mock",
@@ -1972,6 +1981,29 @@ function App() {
                             {selectedVideo.published_at
                               ? formatDateTime(selectedVideo.published_at)
                               : "未設定"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="selected-video-meta-grid">
+                        <div className="selected-video-meta-item">
+                          <span className="selected-video-meta-label">構成</span>
+                          <span className="selected-video-meta-value">
+                            {getDisplayText(selectedVideo.structure)}
+                          </span>
+                        </div>
+
+                        <div className="selected-video-meta-item">
+                          <span className="selected-video-meta-label">台本</span>
+                          <span className="selected-video-meta-value">
+                            {getDisplayText(selectedVideo.script)}
+                          </span>
+                        </div>
+
+                        <div className="selected-video-meta-item">
+                          <span className="selected-video-meta-label">メモ</span>
+                          <span className="selected-video-meta-value">
+                            {getDisplayText(selectedVideo.memo)}
                           </span>
                         </div>
                       </div>

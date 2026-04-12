@@ -187,6 +187,39 @@ function VideoModal({
               />
             </div>
 
+            <div className="form-group video-modal-full">
+              <label>構成</label>
+              <textarea
+                name="structure"
+                value={form.structure || ""}
+                onChange={onChange}
+                placeholder={"例:\n・導入\n・本題\n・オチ"}
+                rows="5"
+              />
+            </div>
+
+            <div className="form-group video-modal-full">
+              <label>台本</label>
+              <textarea
+                name="script"
+                value={form.script || ""}
+                onChange={onChange}
+                placeholder="そのまま読む台本を書いてください"
+                rows="8"
+              />
+            </div>
+
+            <div className="form-group video-modal-full">
+              <label>メモ</label>
+              <textarea
+                name="memo"
+                value={form.memo || ""}
+                onChange={onChange}
+                placeholder="改善点、投稿案、注意点など"
+                rows="5"
+              />
+            </div>
+
             <div className="form-group">
               <label>ステータス</label>
               <select name="status" value={form.status} onChange={onChange}>

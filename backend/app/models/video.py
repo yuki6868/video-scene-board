@@ -22,6 +22,11 @@ class Video(Base):
     concept = Column(String, nullable=True)
     target = Column(String, nullable=True)
     goal = Column(String, nullable=True)
+
+    structure = Column(Text, nullable=True)
+    script = Column(Text, nullable=True)
+    memo = Column(Text, nullable=True)
+
     status = Column(String(50), nullable=False, default="draft")
     analytics_source = Column(String(20), nullable=False, default="mock")
     # 追加: 出力フォーマット設定

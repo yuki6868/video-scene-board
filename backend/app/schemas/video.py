@@ -12,9 +12,15 @@ class VideoBase(BaseModel):
     youtube_url: Optional[str] = None
     youtube_id: Optional[str] = None
     published_at: Optional[datetime] = None
+
     concept: Optional[str] = None
     target: Optional[str] = None
     goal: Optional[str] = None
+
+    structure: Optional[str] = None
+    script: Optional[str] = None
+    memo: Optional[str] = None
+
     status: str = "draft"
     analytics_source: str = "mock"
 
