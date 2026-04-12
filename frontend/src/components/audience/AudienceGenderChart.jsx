@@ -1,6 +1,10 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { useEffect, useRef, useState } from "react";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 function AudienceGenderChart({ genderRatio }) {
+  const wrapRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(0);
+
   const chartData = [
     { name: "男性", value: genderRatio?.male ?? 0, color: "#60a5fa" },
     { name: "女性", value: genderRatio?.female ?? 0, color: "#f472b6" },
@@ -8,6 +12,30 @@ function AudienceGenderChart({ genderRatio }) {
   ];
 
   const hasData = chartData.some((item) => item.value > 0);
+
+  useEffect(() => {
+    const element = wrapRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      const nextWidth = Math.floor(element.getBoundingClientRect().width);
+      setChartWidth(nextWidth > 0 ? nextWidth : 0);
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    observer.observe(element);
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
 
   if (!hasData) {
     return <div className="audience-chart-empty">性別データがありません</div>;
@@ -17,17 +45,17 @@ function AudienceGenderChart({ genderRatio }) {
     <div className="audience-chart-card">
       <div className="audience-chart-title">性別比率</div>
 
-      <div className="audience-chart-wrap">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+      <div ref={wrapRef} className="audience-chart-wrap">
+        {chartWidth > 0 ? (
+          <PieChart width={chartWidth} height={220}>
             <Pie
               data={chartData}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius="55%"
-              outerRadius="82%"
+              innerRadius={60}
+              outerRadius={90}
               paddingAngle={2}
               isAnimationActive={false}
             >
@@ -37,7 +65,7 @@ function AudienceGenderChart({ genderRatio }) {
             </Pie>
             <Tooltip formatter={(value) => `${value}%`} />
           </PieChart>
-        </ResponsiveContainer>
+        ) : null}
       </div>
 
       <div className="audience-chart-legend">

@@ -7,7 +7,6 @@ from app.models.youtube_analytics_daily import YouTubeAnalyticsDaily
 from app.services.youtube.provider_factory import get_youtube_analytics_provider
 from app.schemas.youtube_analytics import YouTubeAnalyticsSummaryResponse
 
-
 def get_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyticsDaily]:
     return (
         db.query(YouTubeAnalyticsDaily)
@@ -72,7 +71,9 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
     if not video.youtube_id:
         raise ValueError("YouTube ID が設定されていません。")
 
-    provider = get_youtube_analytics_provider(video.analytics_source)
+    provider = get_youtube_analytics_provider(
+        getattr(video, "analytics_source", None)
+    )
 
     # 最初は直近7日を同期
     end_date = date.today()

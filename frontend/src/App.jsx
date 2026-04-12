@@ -1747,6 +1747,7 @@ function App() {
         goal: videoForm.goal?.trim() || "",
         published_at: videoForm.published_at || null,
         status: videoForm.status || "draft",
+        analytics_source: videoForm.analytics_source || "mock",
         aspect_ratio: videoForm.aspect_ratio || "9:16",
         frame_width: Number(videoForm.frame_width) || 1080,
         frame_height: Number(videoForm.frame_height) || 1920,
