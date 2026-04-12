@@ -507,6 +507,20 @@ function App() {
     return videos.find((video) => video.id === selectedVideoId) ?? null;
   }, [videos, selectedVideoId]);
 
+  const topVideos = useMemo(() => {
+    return videos
+      .map((video) => ({
+        ...video,
+        summary: videoAnalyticsSummaries[video.id] ?? null,
+      }))
+      .filter((video) => video.summary)
+      .sort(
+        (a, b) =>
+          (b.summary?.views_last_7_days || 0) - (a.summary?.views_last_7_days || 0)
+      )
+      .slice(0, 3);
+  }, [videos, videoAnalyticsSummaries]);
+
   const loadVideos = async () => {
     try {
       const data = await fetchVideos();
@@ -1704,135 +1718,179 @@ function App() {
             </select>
           </div>
 
-          <div className="video-list">
-            {videos.length === 0 ? (
-              <p className="video-list-empty">動画がありません</p>
+          <div className="video-top-section">
+            <div className="video-top-header">
+              <h3>注目動画</h3>
+              <span>7日再生数 Top 3</span>
+            </div>
+
+            {topVideos.length === 0 ? (
+              <p className="video-top-empty">分析データのある動画がありません</p>
             ) : (
-              videos.map((video) => {
-                const summary = videoAnalyticsSummaries[video.id];
-                const isSelected = video.id === selectedVideoId;
+              <div className="video-top-list">
+                {topVideos.map((video, index) => {
+                  const isSelected = video.id === selectedVideoId;
 
-                return (
-                  <article
-                    key={video.id}
-                    className={`video-card ${isSelected ? "is-selected" : ""}`}
-                    onClick={() => setSelectedVideoId(video.id)}
-                  >
-                    <div className="video-card-header">
-                      <h3>{video.title}</h3>
-                      <span className={getStatusClassName(video.status)}>
-                        {getStatusLabel(video.status)}
-                      </span>
-                    </div>
+                  return (
+                    <article
+                      key={video.id}
+                      className={`video-top-card ${isSelected ? "is-selected" : ""}`}
+                      onClick={() => setSelectedVideoId(video.id)}
+                    >
+                      <div className="video-top-rank">#{index + 1}</div>
 
-                    <p className="video-card-description">
-                      {truncateDescription(video.description)}
-                    </p>
-
-                    <div className="video-analytics-mini">
-                      <div className="video-analytics-mini-item">
-                        <span className="video-analytics-mini-label">再生数</span>
-                        <strong>{formatAnalyticsNumber(summary?.latest_views)}</strong>
+                      <div className="video-top-card-header">
+                        <strong>{video.title}</strong>
+                        <span className={getStatusClassName(video.status)}>
+                          {getStatusLabel(video.status)}
+                        </span>
                       </div>
 
-                      <div className="video-analytics-mini-item">
-                        <span className="video-analytics-mini-label">7日再生数</span>
-                        <strong>{formatAnalyticsNumber(summary?.views_last_7_days)}</strong>
-                      </div>
+                      <p className="video-top-description">
+                        {truncateDescription(video.description)}
+                      </p>
 
-                      <div className="video-analytics-mini-item">
-                        <span className="video-analytics-mini-label">CTR</span>
-                        <strong>
-                          {summary
-                            ? formatAnalyticsPercent(
-                                summary.latest_impression_click_through_rate
-                              )
-                            : "-"}
-                        </strong>
-                      </div>
+                      <div className="video-analytics-mini">
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">7日再生数</span>
+                          <strong>
+                            {formatAnalyticsNumber(video.summary?.views_last_7_days)}
+                          </strong>
+                        </div>
 
-                      <div className="video-analytics-mini-item">
-                        <span className="video-analytics-mini-label">取得日</span>
-                        <strong>{summary?.latest_metric_date || "-"}</strong>
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">再生数</span>
+                          <strong>
+                            {formatAnalyticsNumber(video.summary?.latest_views)}
+                          </strong>
+                        </div>
+
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">CTR</span>
+                          <strong>
+                            {formatAnalyticsPercent(
+                              video.summary?.latest_impression_click_through_rate
+                            )}
+                          </strong>
+                        </div>
+
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">取得日</span>
+                          <strong>{video.summary?.latest_metric_date || "-"}</strong>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                );
-              })
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </div>
 
           {selectedVideo && (
             <div className="selected-video-summary">
-              <div className="selected-video-main">
-                <div
-                  className="selected-video-thumbnail"
-                  style={{
-                    aspectRatio: `${selectedVideo.frame_width || 1080} / ${selectedVideo.frame_height || 1920}`,
-                  }}
-                >
-                  {selectedVideo.thumbnail_url ? (
-                    <img
-                      src={buildFileUrl(selectedVideo.thumbnail_url)}
-                      alt={`${selectedVideo.title} のサムネイル`}
-                    />
-                  ) : (
-                    <div className="selected-video-thumbnail-empty">未設定</div>
-                  )}
-                </div>
+              {(() => {
+                const summary = videoAnalyticsSummaries[selectedVideo.id];
 
-                <div className="selected-video-content">
-                  <div className="selected-video-top">
-                    <strong>{selectedVideo.title}</strong>
-                    <span className={getStatusClassName(selectedVideo.status)}>
-                      {getStatusLabel(selectedVideo.status)}
-                    </span>
-                  </div>
-
-                  <p className="selected-video-description">
-                    {truncateDescription(selectedVideo.description)}
-                  </p>
-
-                  <div className="selected-video-meta-grid">
-                    <div className="selected-video-meta-item">
-                      <span className="selected-video-meta-label">タグ</span>
-                      <span className="selected-video-meta-value">
-                        {getDisplayText(selectedVideo.tags)}
-                      </span>
-                    </div>
-
-                    <div className="selected-video-meta-item">
-                      <span className="selected-video-meta-label">YouTube URL</span>
-                      {selectedVideo.youtube_url ? (
-                        <a
-                          href={selectedVideo.youtube_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="selected-video-link"
-                        >
-                          {selectedVideo.youtube_url}
-                        </a>
+                return (
+                  <div className="selected-video-main">
+                    <div
+                      className="selected-video-thumbnail"
+                      style={{
+                        aspectRatio: `${selectedVideo.frame_width || 1080} / ${selectedVideo.frame_height || 1920}`,
+                      }}
+                    >
+                      {selectedVideo.thumbnail_url ? (
+                        <img
+                          src={buildFileUrl(selectedVideo.thumbnail_url)}
+                          alt={`${selectedVideo.title} のサムネイル`}
+                        />
                       ) : (
-                        <span className="selected-video-meta-value">未設定</span>
+                        <div className="selected-video-thumbnail-empty">未設定</div>
                       )}
                     </div>
 
-                    <div className="selected-video-meta-item">
-                      <span className="selected-video-meta-label">投稿日</span>
-                      <span className="selected-video-meta-value">
-                        {selectedVideo.published_at
-                          ? formatDateTime(selectedVideo.published_at)
-                          : "未設定"}
-                      </span>
+                    <div className="selected-video-content">
+                      <div className="selected-video-top">
+                        <strong>{selectedVideo.title}</strong>
+                        <span className={getStatusClassName(selectedVideo.status)}>
+                          {getStatusLabel(selectedVideo.status)}
+                        </span>
+                      </div>
+
+                      <p className="selected-video-description">
+                        {truncateDescription(selectedVideo.description)}
+                      </p>
+
+                      <div className="video-analytics-mini">
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">再生数</span>
+                          <strong>{formatAnalyticsNumber(summary?.latest_views)}</strong>
+                        </div>
+
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">7日再生数</span>
+                          <strong>{formatAnalyticsNumber(summary?.views_last_7_days)}</strong>
+                        </div>
+
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">CTR</span>
+                          <strong>
+                            {summary
+                              ? formatAnalyticsPercent(
+                                  summary.latest_impression_click_through_rate
+                                )
+                              : "-"}
+                          </strong>
+                        </div>
+
+                        <div className="video-analytics-mini-item">
+                          <span className="video-analytics-mini-label">取得日</span>
+                          <strong>{summary?.latest_metric_date || "-"}</strong>
+                        </div>
+                      </div>
+
+                      <div className="selected-video-meta-grid">
+                        <div className="selected-video-meta-item">
+                          <span className="selected-video-meta-label">タグ</span>
+                          <span className="selected-video-meta-value">
+                            {getDisplayText(selectedVideo.tags)}
+                          </span>
+                        </div>
+
+                        <div className="selected-video-meta-item">
+                          <span className="selected-video-meta-label">YouTube URL</span>
+                          {selectedVideo.youtube_url ? (
+                            <a
+                              href={selectedVideo.youtube_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="selected-video-link"
+                            >
+                              {selectedVideo.youtube_url}
+                            </a>
+                          ) : (
+                            <span className="selected-video-meta-value">未設定</span>
+                          )}
+                        </div>
+
+                        <div className="selected-video-meta-item">
+                          <span className="selected-video-meta-label">投稿日</span>
+                          <span className="selected-video-meta-value">
+                            {selectedVideo.published_at
+                              ? formatDateTime(selectedVideo.published_at)
+                              : "未設定"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="video-datetime-list">
+                        <span>作成: {formatDateTime(selectedVideo.created_at)}</span>
+                        <span>更新: {formatDateTime(selectedVideo.updated_at)}</span>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="video-datetime-list">
-                    <span>作成: {formatDateTime(selectedVideo.created_at)}</span>
-                    <span>更新: {formatDateTime(selectedVideo.updated_at)}</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           )}
 
