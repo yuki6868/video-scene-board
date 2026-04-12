@@ -2,6 +2,7 @@ function VideoModal({
   isOpen,
   onClose,
   onSubmit,
+  onGenerateScenesFromScript,
   form,
   onChange,
   onThumbnailFileChange,
@@ -264,6 +265,17 @@ function VideoModal({
             <button type="button" onClick={onClose} className="secondary-button">
               キャンセル
             </button>
+
+            {editingVideoId !== null ? (
+              <button
+                type="button"
+                onClick={onGenerateScenesFromScript}
+                className="secondary-button"
+              >
+                台本からシーン生成
+              </button>
+            ) : null}
+
             <button type="button" onClick={onSubmit} className="submit-button">
               {editingVideoId !== null ? "更新" : "作成"}
             </button>

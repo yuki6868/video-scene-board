@@ -90,6 +90,59 @@ const initialVideoForm = {
   frame_height: 1920,
 };
 
+function splitVideoScriptToSceneSeeds(videoForm) {
+  const sourceText =
+    (videoForm.script && videoForm.script.trim()) ||
+    (videoForm.structure && videoForm.structure.trim()) ||
+    "";
+
+  if (!sourceText) {
+    return [];
+  }
+
+  return sourceText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const separators = ["｜", "|", "：", ":"];
+      let title = `シーン${index + 1}`;
+      let script = line;
+
+      for (const separator of separators) {
+        if (line.includes(separator)) {
+          const [left, ...rest] = line.split(separator);
+          const leftText = left.trim();
+          const rightText = rest.join(separator).trim();
+
+          if (leftText && rightText) {
+            title = leftText;
+            script = rightText;
+            break;
+          }
+        }
+      }
+
+      return {
+        title,
+        script,
+        materials: "",
+        section_type: "",
+        status: "未着手",
+        duration_seconds: null,
+        audio_path: "",
+        character_name: "",
+        character_expression: "",
+        background_path: "",
+        background_fit_mode: "cover",
+        se_path: "",
+        telop: "",
+        direction: "",
+        edit_note: "",
+      };
+    });
+}
+
 const VOICE_STYLE_OPTIONS = [
   { label: "ずんだもん / ノーマル", value: 3 },
   { label: "ずんだもん / あまあま", value: 1 },
@@ -1732,6 +1785,42 @@ function App() {
     }
   };
 
+  const handleGenerateScenesFromVideoScript = async () => {
+    if (!selectedVideoId) {
+      alert("先に動画を選択してください");
+      return;
+    }
+
+    const seeds = splitVideoScriptToSceneSeeds(videoForm);
+
+    if (seeds.length === 0) {
+      alert("台本または構成が空です");
+      return;
+    }
+
+    const ok = window.confirm(
+      `${seeds.length}件のシーンを追加します。よろしいですか？`
+    );
+    if (!ok) return;
+
+    try {
+      for (let i = 0; i < seeds.length; i += 1) {
+        await createScene(selectedVideoId, {
+          ...seeds[i],
+          position: scenes.length + i,
+        });
+      }
+
+      await loadScenesByVideo(selectedVideoId);
+      await loadTasksByVideo(selectedVideoId);
+
+      alert(`${seeds.length}件のシーンを作成しました`);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "シーン自動作成に失敗しました");
+    }
+  };
+
   const handleOpenCreateVideoModal = () => {
     setEditingVideoId(null);
     resetVideoForm();
@@ -2525,10 +2614,11 @@ function App() {
 
       <VideoModal
         isOpen={isVideoModalOpen}
+        onClose={closeVideoModal}
+        onSubmit={handleVideoSubmit}
+        onGenerateScenesFromScript={handleGenerateScenesFromVideoScript}
         form={videoForm}
         onChange={handleVideoChange}
-        onSubmit={handleVideoSubmit}
-        onClose={closeVideoModal}
         onThumbnailFileChange={handleThumbnailFileChange}
         editingVideoId={editingVideoId}
       />

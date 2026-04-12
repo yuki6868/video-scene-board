@@ -25,25 +25,6 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
     if video is None:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    new_scene = Scene(
-        video_id=video_id,
-        title=scene.title,
-        script=scene.script,
-        materials=scene.materials,
-        position=scene.position,
-        section_type=scene.section_type,
-        status=scene.status,
-        duration_seconds=scene.duration_seconds,
-        audio_path=scene.audio_path,
-        character_name=scene.character_name,
-        character_expression=scene.character_expression,
-        background_path=scene.background_path,
-        background_fit_mode=scene.background_fit_mode,
-        se_path=scene.se_path,
-        telop=scene.telop,
-        direction=scene.direction,
-        edit_note=scene.edit_note,
-    )
     # シーン作成
     new_scene = Scene(
         **scene.dict(),
