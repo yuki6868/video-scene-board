@@ -5,6 +5,7 @@ import {
 } from "../../api/youtubeAnalyticsApi";
 import AnalyticsSummaryCards from "./AnalyticsSummaryCards";
 import AnalyticsDailyTable from "./AnalyticsDailyTable";
+import AnalyticsLineChart from "./AnalyticsLineChart";
 
 export default function VideoAnalyticsPanel({ selectedVideo }) {
   const [analytics, setAnalytics] = useState([]);
@@ -94,9 +95,10 @@ export default function VideoAnalyticsPanel({ selectedVideo }) {
         <p className="error-text">{error}</p>
       ) : (
         <>
-          <AnalyticsSummaryCards latestAnalytics={latestAnalytics} />
-          <AnalyticsDailyTable analytics={analytics} />
-        </>
+            <AnalyticsSummaryCards latestAnalytics={latestAnalytics} />
+            <AnalyticsLineChart analytics={analytics} />
+            <AnalyticsDailyTable analytics={analytics} />
+        A</>
       )}
     </section>
   );
