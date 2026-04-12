@@ -186,6 +186,19 @@ function formatAnalyticsPercent(value) {
   return `${(value * 100).toFixed(2)}%`;
 }
 
+function getMainAudienceAge(ageDistribution) {
+  if (!ageDistribution) return "-";
+
+  const entries = Object.entries(ageDistribution);
+  if (entries.length === 0) return "-";
+
+  const [age] = entries.reduce((max, current) => {
+    return current[1] > max[1] ? current : max;
+  });
+
+  return age;
+}
+
 function DraggableTaskCard({ task, children }) {
   const {
     attributes,
@@ -561,6 +574,11 @@ function App() {
   const selectedVideo = useMemo(() => {
     return videos.find((video) => video.id === selectedVideoId) ?? null;
   }, [videos, selectedVideoId]);
+
+  const selectedVideoAudience = useMemo(() => {
+    if (!selectedVideo) return null;
+    return videoAudienceSummaries[selectedVideo.id] ?? null;
+  }, [selectedVideo, videoAudienceSummaries]);
 
   const topVideos = useMemo(() => {
     return videos
@@ -1957,6 +1975,44 @@ function App() {
                 );
               })()}
             </div>
+          )}
+
+          {selectedVideo && (
+            <section className="audience-section">
+              <div className="audience-section-header">
+                <h3>視聴者属性</h3>
+                <span className="audience-section-date">
+                  取得日: {selectedVideoAudience?.metric_date || "-"}
+                </span>
+              </div>
+
+              {!selectedVideoAudience ? (
+                <div className="audience-empty">
+                  視聴者属性データはまだありません
+                </div>
+              ) : (
+                <div className="audience-summary-grid">
+                  <div className="audience-summary-card">
+                    <div className="audience-summary-title">性別比率</div>
+                    <div className="audience-summary-values">
+                      <span>男性: {selectedVideoAudience.gender_ratio?.male ?? 0}%</span>
+                      <span>女性: {selectedVideoAudience.gender_ratio?.female ?? 0}%</span>
+                      <span>その他: {selectedVideoAudience.gender_ratio?.other ?? 0}%</span>
+                    </div>
+                  </div>
+
+                  <div className="audience-summary-card">
+                    <div className="audience-summary-title">年齢層</div>
+                    <div className="audience-summary-values">
+                      <span>主視聴層: {getMainAudienceAge(selectedVideoAudience.age_distribution)}</span>
+                      <span>18-24: {selectedVideoAudience.age_distribution?.["18-24"] ?? 0}%</span>
+                      <span>25-34: {selectedVideoAudience.age_distribution?.["25-34"] ?? 0}%</span>
+                      <span>35-44: {selectedVideoAudience.age_distribution?.["35-44"] ?? 0}%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
           )}
 
           {selectedVideo && (
