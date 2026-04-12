@@ -44,6 +44,7 @@ import {
 } from "./api/youtubeAnalyticsApi";
 import AudienceGenderChart from "./components/audience/AudienceGenderChart";
 import AudienceAgeChart from "./components/audience/AudienceAgeChart";
+import TaskOptionDropdown from "./components/TaskOptionDropdown";
 
 const initialSceneForm = {
   title: "",
@@ -1176,17 +1177,15 @@ function App() {
     loadTasksByVideo(selectedVideoId);
   }, [selectedVideoId]);
 
-
   useEffect(() => {
-    if (selectedVideoId) {
-      loadScenesByVideo(selectedVideoId);
-      loadTasksByVideo(selectedVideoId);
-    } else {
-      setScenes([]);
-      setTasks([]);
-      setTasksError("");
-    }
-  }, [selectedVideoId]);
+    if (!selectedScene?.id) return;
+
+    setNewTask((prev) => ({
+      ...prev,
+      scene_id: String(selectedScene.id),
+      parent_task_id: "",
+    }));
+  }, [selectedScene]);
 
   useEffect(() => {
     if (!selectedScene) {
@@ -1215,15 +1214,6 @@ function App() {
       );
     });
   }, [scenes, searchText]);
-
-  const sortTasksByPriority = (taskList) => {
-    return [...taskList].sort((a, b) => {
-      const priorityDiff = getPriorityOrder(a.priority) - getPriorityOrder(b.priority);
-      if (priorityDiff !== 0) return priorityDiff;
-
-      return b.id - a.id;
-    });
-  };
 
   function getChildProgress(task) {
     const children = task.children || [];
@@ -1258,7 +1248,12 @@ function App() {
   }
 
   function resetNewTask() {
-    setNewTask(initialNewTask);
+    setNewTask((prev) => ({
+      ...initialNewTask,
+      scene_id: prev.scene_id,
+      create_mode: prev.create_mode,
+      parent_task_id: prev.create_mode === "child" ? prev.parent_task_id : "",
+    }));
   }
 
   function TaskTreeNode({
@@ -1364,7 +1359,7 @@ function App() {
   }
 
   const taskTree = useMemo(() => {
-    return buildTaskTree(sortTasksByPriority(tasks));
+    return buildTaskTree(tasks);
   }, [tasks]);
 
   const sceneGroupTasks = useMemo(() => {
@@ -1398,6 +1393,50 @@ function App() {
         task.parent_task_id === sceneGroup.id
     );
   }, [tasks, newTask.scene_id, sceneGroupBySceneId]);
+
+  const orderedSceneOptions = useMemo(() => {
+    if (!newTask.scene_id) return scenes;
+
+    const currentSceneId = Number(newTask.scene_id);
+    const currentScene = scenes.find((scene) => scene.id === currentSceneId);
+    const otherScenes = scenes.filter((scene) => scene.id !== currentSceneId);
+
+    return currentScene ? [currentScene, ...otherScenes] : scenes;
+  }, [scenes, newTask.scene_id]);
+
+  const orderedParentTaskOptions = useMemo(() => {
+    if (!newTask.parent_task_id) return availableParentTasks;
+
+    const currentParentTaskId = Number(newTask.parent_task_id);
+    const currentParentTask = availableParentTasks.find(
+      (task) => task.id === currentParentTaskId
+    );
+    const otherParentTasks = availableParentTasks.filter(
+      (task) => task.id !== currentParentTaskId
+    );
+
+    return currentParentTask
+      ? [currentParentTask, ...otherParentTasks]
+      : availableParentTasks;
+  }, [availableParentTasks, newTask.parent_task_id]);
+
+  const sceneTaskOptions = useMemo(
+    () =>
+      orderedSceneOptions.map((scene) => ({
+        value: scene.id,
+        label: `Scene #${scene.position + 1} ${scene.title}`,
+      })),
+    [orderedSceneOptions]
+  );
+
+  const parentTaskSelectOptions = useMemo(
+    () =>
+      orderedParentTaskOptions.map((task) => ({
+        value: task.id,
+        label: task.title,
+      })),
+    [orderedParentTaskOptions]
+  );
 
   const taskColumns = useMemo(() => {
     return {
@@ -2259,42 +2298,32 @@ function App() {
                 <option value="child">子タスクを追加</option>
               </select>
 
-              <select
+              <TaskOptionDropdown
                 value={newTask.scene_id}
-                onChange={(e) =>
+                placeholder="対象シーンを選択"
+                options={sceneTaskOptions}
+                onChange={(nextValue) =>
                   setNewTask((prev) => ({
                     ...prev,
-                    scene_id: e.target.value,
+                    scene_id: String(nextValue),
                     parent_task_id: "",
                   }))
                 }
-              >
-                <option value="">対象シーンを選択</option>
-                {scenes.map((scene) => (
-                  <option key={scene.id} value={scene.id}>
-                    Scene #{scene.position + 1} {scene.title}
-                  </option>
-                ))}
-              </select>
+              />
 
               {newTask.create_mode === "child" && (
-                <select
+                <TaskOptionDropdown
                   value={newTask.parent_task_id}
-                  onChange={(e) =>
+                  placeholder="親タスクを選択"
+                  options={parentTaskSelectOptions}
+                  disabled={!newTask.scene_id}
+                  onChange={(nextValue) =>
                     setNewTask((prev) => ({
                       ...prev,
-                      parent_task_id: e.target.value,
+                      parent_task_id: String(nextValue),
                     }))
                   }
-                  disabled={!newTask.scene_id}
-                >
-                  <option value="">親タスクを選択</option>
-                  {availableParentTasks.map((task) => (
-                    <option key={task.id} value={task.id}>
-                      {task.title}
-                    </option>
-                  ))}
-                </select>
+                />
               )}
 
               <input
