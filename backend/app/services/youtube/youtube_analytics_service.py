@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.video import Video
 from app.models.youtube_analytics_daily import YouTubeAnalyticsDaily
 from app.services.youtube.provider_factory import get_youtube_analytics_provider
+from app.schemas.youtube_analytics import YouTubeAnalyticsSummaryResponse
 
 
 def get_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyticsDaily]:
@@ -15,6 +16,53 @@ def get_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyti
         .all()
     )
 
+def get_video_analytics_summary(db: Session, video_id: int) -> YouTubeAnalyticsSummaryResponse:
+    rows = (
+        db.query(YouTubeAnalyticsDaily)
+        .filter(YouTubeAnalyticsDaily.video_id == video_id)
+        .order_by(YouTubeAnalyticsDaily.metric_date.asc())
+        .all()
+    )
+
+    if not rows:
+        return YouTubeAnalyticsSummaryResponse(video_id=video_id)
+
+    latest = rows[-1]
+    previous = rows[-2] if len(rows) >= 2 else None
+
+    last_7_rows = rows[-7:]
+
+    views_last_7_days = sum(row.views for row in last_7_rows)
+    watch_time_minutes_last_7_days = round(
+        sum(row.watch_time_minutes for row in last_7_rows), 2
+    )
+    subscribers_gained_last_7_days = sum(row.subscribers_gained for row in last_7_rows)
+
+    views_diff_vs_previous_day = (
+        latest.views - previous.views if previous else 0
+    )
+    ctr_diff_vs_previous_day = round(
+        latest.impression_click_through_rate - previous.impression_click_through_rate,
+        4,
+    ) if previous else 0
+
+    return YouTubeAnalyticsSummaryResponse(
+        video_id=video_id,
+        latest_metric_date=latest.metric_date,
+        latest_views=latest.views,
+        latest_likes=latest.likes,
+        latest_comments=latest.comments,
+        latest_average_view_duration_seconds=latest.average_view_duration_seconds,
+        latest_watch_time_minutes=latest.watch_time_minutes,
+        latest_impressions=latest.impressions,
+        latest_impression_click_through_rate=latest.impression_click_through_rate,
+        latest_subscribers_gained=latest.subscribers_gained,
+        views_last_7_days=views_last_7_days,
+        watch_time_minutes_last_7_days=watch_time_minutes_last_7_days,
+        subscribers_gained_last_7_days=subscribers_gained_last_7_days,
+        views_diff_vs_previous_day=views_diff_vs_previous_day,
+        ctr_diff_vs_previous_day=ctr_diff_vs_previous_day,
+    )
 
 def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyticsDaily]:
     video = db.query(Video).filter(Video.id == video_id).first()

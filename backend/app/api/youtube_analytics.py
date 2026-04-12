@@ -2,10 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
-from app.schemas.youtube_analytics import YouTubeAnalyticsDailyResponse
+from app.schemas.youtube_analytics import (
+    YouTubeAnalyticsDailyResponse,
+    YouTubeAnalyticsSummaryResponse,
+)
 from app.services.youtube.youtube_analytics_service import (
     get_video_analytics_daily,
     sync_video_analytics_daily,
+    get_video_analytics_summary,
 )
 
 router = APIRouter(prefix="/videos", tags=["youtube-analytics"])
@@ -30,3 +34,7 @@ def sync_video_analytics(video_id: int, db: Session = Depends(get_db)):
         return sync_video_analytics_daily(db, video_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{video_id}/analytics/summary", response_model=YouTubeAnalyticsSummaryResponse)
+def read_video_analytics_summary(video_id: int, db: Session = Depends(get_db)):
+    return get_video_analytics_summary(db, video_id)
