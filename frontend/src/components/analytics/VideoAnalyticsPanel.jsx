@@ -6,12 +6,14 @@ import {
 import AnalyticsSummaryCards from "./AnalyticsSummaryCards";
 import AnalyticsDailyTable from "./AnalyticsDailyTable";
 import AnalyticsLineChart from "./AnalyticsLineChart";
+import { fetchVideoAnalyticsSummary } from "../../api/youtubeAnalyticsApi";
 
 export default function VideoAnalyticsPanel({ selectedVideo }) {
   const [analytics, setAnalytics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
+  const [summary, setSummary] = useState(null);
 
   const canUseAnalytics = Boolean(selectedVideo?.id && selectedVideo?.youtube_id);
 
@@ -27,15 +29,20 @@ export default function VideoAnalyticsPanel({ selectedVideo }) {
     setError("");
 
     try {
-      const data = await fetchVideoAnalyticsDaily(selectedVideo.id);
-      setAnalytics(data);
+        const [dailyData, summaryData] = await Promise.all([
+        fetchVideoAnalyticsDaily(selectedVideo.id),
+        fetchVideoAnalyticsSummary(selectedVideo.id),
+        ]);
+
+        setAnalytics(dailyData);
+        setSummary(summaryData);
     } catch (err) {
-      console.error(err);
-      setError("分析データの取得に失敗しました。");
+        console.error(err);
+        setError("分析データの取得に失敗しました。");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
 
   const handleSync = async () => {
     if (!selectedVideo?.id) return;
@@ -44,15 +51,22 @@ export default function VideoAnalyticsPanel({ selectedVideo }) {
     setError("");
 
     try {
-      const data = await syncVideoAnalytics(selectedVideo.id);
-      setAnalytics(data);
+        await syncVideoAnalytics(selectedVideo.id);
+
+        const [dailyData, summaryData] = await Promise.all([
+        fetchVideoAnalyticsDaily(selectedVideo.id),
+        fetchVideoAnalyticsSummary(selectedVideo.id),
+        ]);
+
+        setAnalytics(dailyData);
+        setSummary(summaryData);
     } catch (err) {
-      console.error(err);
-      setError("分析データの同期に失敗しました。");
+        console.error(err);
+        setError("分析データの同期に失敗しました。");
     } finally {
-      setSyncing(false);
+        setSyncing(false);
     }
-  };
+    };
 
   useEffect(() => {
     setAnalytics([]);
@@ -95,7 +109,7 @@ export default function VideoAnalyticsPanel({ selectedVideo }) {
         <p className="error-text">{error}</p>
       ) : (
         <>
-            <AnalyticsSummaryCards latestAnalytics={latestAnalytics} />
+            <AnalyticsSummaryCards summary={summary} />
             <AnalyticsLineChart analytics={analytics} />
             <AnalyticsDailyTable analytics={analytics} />
         A</>

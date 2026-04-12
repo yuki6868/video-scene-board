@@ -23,3 +23,16 @@ export async function syncVideoAnalytics(videoId) {
 
   return response.json();
 }
+
+export async function fetchVideoAnalyticsSummary(videoId) {
+  const response = await fetch(
+    `${API_BASE_URL}/videos/${videoId}/analytics/summary`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`サマリー取得に失敗しました: ${errorText}`);
+  }
+
+  return response.json();
+}
