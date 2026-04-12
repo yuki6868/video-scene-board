@@ -72,7 +72,7 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
     if not video.youtube_id:
         raise ValueError("YouTube ID が設定されていません。")
 
-    provider = get_youtube_analytics_provider()
+    provider = get_youtube_analytics_provider(video.analytics_source)
 
     # 最初は直近7日を同期
     end_date = date.today()
