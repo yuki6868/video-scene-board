@@ -38,6 +38,7 @@ import VideoModal from "./components/modals/VideoModal";
 import SceneModal from "./components/modals/SceneModal";
 import { exportVideoDavinci, getDavinciExportDownloadUrl, } from "./api/videoApi";
 import VideoAnalyticsPanel from "./components/analytics/VideoAnalyticsPanel";
+import { fetchVideoAnalyticsSummary } from "./api/youtubeAnalyticsApi";
 
 const initialSceneForm = {
   title: "",
@@ -173,6 +174,16 @@ function TaskDroppableColumn({ status, count, children }) {
       </div>
     </section>
   );
+}
+
+function formatAnalyticsNumber(value) {
+  if (value == null) return "-";
+  return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function formatAnalyticsPercent(value) {
+  if (value == null) return "-";
+  return `${(value * 100).toFixed(2)}%`;
 }
 
 function DraggableTaskCard({ task, children }) {
@@ -463,6 +474,7 @@ function App() {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [editingVideoId, setEditingVideoId] = useState(null);
   const [isDavinciExporting, setIsDavinciExporting] = useState(false);
+  const [videoAnalyticsSummaries, setVideoAnalyticsSummaries] = useState({});
 
   const initialNewTask = {
     create_mode: "section",
@@ -499,6 +511,7 @@ function App() {
     try {
       const data = await fetchVideos();
       setVideos(data);
+      await loadVideoAnalyticsSummaries(data);
 
       if (data.length === 0) {
         setSelectedVideoId(null);
@@ -527,6 +540,27 @@ function App() {
       task_type: task.task_type,
       scene_id: task.scene_id,
     });
+  }
+
+  async function loadVideoAnalyticsSummaries(videoList) {
+    try {
+      const results = await Promise.all(
+        videoList.map(async (video) => {
+          try {
+            const summary = await fetchVideoAnalyticsSummary(video.id);
+            return [video.id, summary];
+          } catch (error) {
+            console.error(`動画 ${video.id} の分析サマリー取得に失敗`, error);
+            return [video.id, null];
+          }
+        })
+      );
+
+      const summaryMap = Object.fromEntries(results);
+      setVideoAnalyticsSummaries(summaryMap);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   function toggleTaskExpanded(taskId) {
@@ -1654,18 +1688,78 @@ function App() {
             <select
               id="video-select"
               value={selectedVideoId ?? ""}
-              onChange={(e) => setSelectedVideoId(Number(e.target.value))}
+              onChange={(e) =>
+                setSelectedVideoId(e.target.value ? Number(e.target.value) : null)
+              }
             >
               {videos.length === 0 ? (
                 <option value="">動画がありません</option>
               ) : (
                 videos.map((video) => (
                   <option key={video.id} value={video.id}>
-                    {video.title}（{getStatusLabel(video.status)}）
+                    {video.title}
                   </option>
                 ))
               )}
             </select>
+          </div>
+
+          <div className="video-list">
+            {videos.length === 0 ? (
+              <p className="video-list-empty">動画がありません</p>
+            ) : (
+              videos.map((video) => {
+                const summary = videoAnalyticsSummaries[video.id];
+                const isSelected = video.id === selectedVideoId;
+
+                return (
+                  <article
+                    key={video.id}
+                    className={`video-card ${isSelected ? "is-selected" : ""}`}
+                    onClick={() => setSelectedVideoId(video.id)}
+                  >
+                    <div className="video-card-header">
+                      <h3>{video.title}</h3>
+                      <span className={getStatusClassName(video.status)}>
+                        {getStatusLabel(video.status)}
+                      </span>
+                    </div>
+
+                    <p className="video-card-description">
+                      {truncateDescription(video.description)}
+                    </p>
+
+                    <div className="video-analytics-mini">
+                      <div className="video-analytics-mini-item">
+                        <span className="video-analytics-mini-label">再生数</span>
+                        <strong>{formatAnalyticsNumber(summary?.latest_views)}</strong>
+                      </div>
+
+                      <div className="video-analytics-mini-item">
+                        <span className="video-analytics-mini-label">7日再生数</span>
+                        <strong>{formatAnalyticsNumber(summary?.views_last_7_days)}</strong>
+                      </div>
+
+                      <div className="video-analytics-mini-item">
+                        <span className="video-analytics-mini-label">CTR</span>
+                        <strong>
+                          {summary
+                            ? formatAnalyticsPercent(
+                                summary.latest_impression_click_through_rate
+                              )
+                            : "-"}
+                        </strong>
+                      </div>
+
+                      <div className="video-analytics-mini-item">
+                        <span className="video-analytics-mini-label">取得日</span>
+                        <strong>{summary?.latest_metric_date || "-"}</strong>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            )}
           </div>
 
           {selectedVideo && (
