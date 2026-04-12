@@ -36,3 +36,16 @@ export async function fetchVideoAnalyticsSummary(videoId) {
 
   return response.json();
 }
+
+export async function fetchVideoAudienceSummary(videoId) {
+  const response = await fetch(
+    `${API_BASE_URL}/videos/${videoId}/analytics/audience`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`視聴者属性サマリー取得に失敗しました: ${errorText}`);
+  }
+
+  return response.json();
+}

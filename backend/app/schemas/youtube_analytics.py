@@ -59,3 +59,26 @@ class YouTubeAnalyticsSummaryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class GenderRatioResponse(BaseModel):
+    male: float = 0
+    female: float = 0
+    other: float = 0
+
+
+class AgeDistributionResponse(BaseModel):
+    age_13_17: float = 0
+    age_18_24: float = 0
+    age_25_34: float = 0
+    age_35_44: float = 0
+    age_45_54: float = 0
+    age_55_64: float = 0
+    age_65_plus: float = 0
+
+
+class YouTubeAudienceSummaryResponse(BaseModel):
+    video_id: int
+    metric_date: Optional[date] = None
+    gender_ratio: GenderRatioResponse
+    age_distribution: AgeDistributionResponse
+    data_source: str = "mock"

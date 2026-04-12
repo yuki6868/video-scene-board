@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 from app.models.video import Video
 from app.models.youtube_analytics_daily import YouTubeAnalyticsDaily
 from app.services.youtube.provider_factory import get_youtube_analytics_provider
-from app.schemas.youtube_analytics import YouTubeAnalyticsSummaryResponse
+from app.schemas.youtube_analytics import (
+    YouTubeAnalyticsSummaryResponse,
+    YouTubeAudienceSummaryResponse,
+)
+
 
 def get_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyticsDaily]:
     return (
@@ -15,53 +19,76 @@ def get_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyti
         .all()
     )
 
+
 def get_video_analytics_summary(db: Session, video_id: int) -> YouTubeAnalyticsSummaryResponse:
-    rows = (
+    daily_items = (
         db.query(YouTubeAnalyticsDaily)
         .filter(YouTubeAnalyticsDaily.video_id == video_id)
         .order_by(YouTubeAnalyticsDaily.metric_date.asc())
         .all()
     )
 
-    if not rows:
+    if not daily_items:
         return YouTubeAnalyticsSummaryResponse(video_id=video_id)
 
-    latest = rows[-1]
-    previous = rows[-2] if len(rows) >= 2 else None
-
-    last_7_rows = rows[-7:]
-
-    views_last_7_days = sum(row.views for row in last_7_rows)
-    watch_time_minutes_last_7_days = round(
-        sum(row.watch_time_minutes for row in last_7_rows), 2
-    )
-    subscribers_gained_last_7_days = sum(row.subscribers_gained for row in last_7_rows)
-
-    views_diff_vs_previous_day = (
-        latest.views - previous.views if previous else 0
-    )
-    ctr_diff_vs_previous_day = round(
-        latest.impression_click_through_rate - previous.impression_click_through_rate,
-        4,
-    ) if previous else 0
+    latest = daily_items[-1]
+    previous = daily_items[-2] if len(daily_items) >= 2 else None
+    last_7_days = daily_items[-7:]
 
     return YouTubeAnalyticsSummaryResponse(
         video_id=video_id,
         latest_metric_date=latest.metric_date,
-        latest_views=latest.views,
-        latest_likes=latest.likes,
-        latest_comments=latest.comments,
-        latest_average_view_duration_seconds=latest.average_view_duration_seconds,
-        latest_watch_time_minutes=latest.watch_time_minutes,
-        latest_impressions=latest.impressions,
-        latest_impression_click_through_rate=latest.impression_click_through_rate,
-        latest_subscribers_gained=latest.subscribers_gained,
-        views_last_7_days=views_last_7_days,
-        watch_time_minutes_last_7_days=watch_time_minutes_last_7_days,
-        subscribers_gained_last_7_days=subscribers_gained_last_7_days,
-        views_diff_vs_previous_day=views_diff_vs_previous_day,
-        ctr_diff_vs_previous_day=ctr_diff_vs_previous_day,
+        latest_views=latest.views or 0,
+        latest_likes=latest.likes or 0,
+        latest_comments=latest.comments or 0,
+        latest_average_view_duration_seconds=latest.average_view_duration_seconds or 0,
+        latest_watch_time_minutes=latest.watch_time_minutes or 0,
+        latest_impressions=latest.impressions or 0,
+        latest_impression_click_through_rate=latest.impression_click_through_rate or 0,
+        latest_subscribers_gained=latest.subscribers_gained or 0,
+        views_last_7_days=sum(item.views or 0 for item in last_7_days),
+        watch_time_minutes_last_7_days=sum(
+            item.watch_time_minutes or 0 for item in last_7_days
+        ),
+        subscribers_gained_last_7_days=sum(
+            item.subscribers_gained or 0 for item in last_7_days
+        ),
+        views_diff_vs_previous_day=(latest.views or 0)
+        - ((previous.views or 0) if previous else 0),
+        ctr_diff_vs_previous_day=(latest.impression_click_through_rate or 0)
+        - ((previous.impression_click_through_rate or 0) if previous else 0),
     )
+
+
+def get_video_audience_summary(db: Session, video_id: int) -> YouTubeAudienceSummaryResponse:
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise ValueError("動画が見つかりません。")
+
+    if not video.youtube_id:
+        raise ValueError("YouTube ID が設定されていません。")
+
+    current_source = "api" if getattr(video, "analytics_source", None) == "api" else "mock"
+
+    provider = get_youtube_analytics_provider(current_source)
+
+    end_date = date.today()
+    start_date = end_date - timedelta(days=27)
+
+    result = provider.fetch_video_audience_summary(
+        youtube_video_id=video.youtube_id,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+    )
+
+    return YouTubeAudienceSummaryResponse(
+        video_id=video.id,
+        metric_date=result.get("metric_date"),
+        gender_ratio=result.get("gender_ratio", {}),
+        age_distribution=result.get("age_distribution", {}),
+        data_source=result.get("data_source", current_source),
+    )
+
 
 def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyticsDaily]:
     video = db.query(Video).filter(Video.id == video_id).first()
@@ -71,11 +98,27 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
     if not video.youtube_id:
         raise ValueError("YouTube ID が設定されていません。")
 
-    provider = get_youtube_analytics_provider(
-        getattr(video, "analytics_source", None)
-    )
+    current_source = "api" if getattr(video, "analytics_source", None) == "api" else "mock"
 
-    # 最初は直近7日を同期
+    # 既存データに別ソースが混ざっていたら丸ごと削除して混在を防ぐ
+    existing_sources = {
+        row[0]
+        for row in db.query(YouTubeAnalyticsDaily.data_source)
+        .filter(YouTubeAnalyticsDaily.video_id == video.id)
+        .distinct()
+        .all()
+        if row[0]
+    }
+
+    if existing_sources and existing_sources != {current_source}:
+        db.query(YouTubeAnalyticsDaily).filter(
+            YouTubeAnalyticsDaily.video_id == video.id
+        ).delete(synchronize_session=False)
+        db.commit()
+
+    provider = get_youtube_analytics_provider(current_source)
+
+    # 今は直近7日を同期
     end_date = date.today()
     start_date = end_date - timedelta(days=6)
 
@@ -84,8 +127,6 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
     )
-
-    saved_items = []
 
     for item in metrics:
         metric_date = date.fromisoformat(item["metric_date"])
@@ -109,8 +150,7 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
             existing.impressions = item["impressions"]
             existing.impression_click_through_rate = item["impression_click_through_rate"]
             existing.subscribers_gained = item["subscribers_gained"]
-            existing.data_source = item["data_source"]
-            saved_items.append(existing)
+            existing.data_source = current_source
         else:
             row = YouTubeAnalyticsDaily(
                 video_id=video.id,
@@ -124,10 +164,9 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
                 impressions=item["impressions"],
                 impression_click_through_rate=item["impression_click_through_rate"],
                 subscribers_gained=item["subscribers_gained"],
-                data_source=item["data_source"],
+                data_source=current_source,
             )
             db.add(row)
-            saved_items.append(row)
 
     db.commit()
 

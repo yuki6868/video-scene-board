@@ -5,11 +5,13 @@ from app.db.database import SessionLocal
 from app.schemas.youtube_analytics import (
     YouTubeAnalyticsDailyResponse,
     YouTubeAnalyticsSummaryResponse,
+    YouTubeAudienceSummaryResponse,
 )
 from app.services.youtube.youtube_analytics_service import (
     get_video_analytics_daily,
     sync_video_analytics_daily,
     get_video_analytics_summary,
+    get_video_audience_summary,
 )
 
 router = APIRouter(prefix="/videos", tags=["youtube-analytics"])
@@ -38,3 +40,10 @@ def sync_video_analytics(video_id: int, db: Session = Depends(get_db)):
 @router.get("/{video_id}/analytics/summary", response_model=YouTubeAnalyticsSummaryResponse)
 def read_video_analytics_summary(video_id: int, db: Session = Depends(get_db)):
     return get_video_analytics_summary(db, video_id)
+
+@router.get("/{video_id}/analytics/audience", response_model=YouTubeAudienceSummaryResponse)
+def read_video_audience_summary(video_id: int, db: Session = Depends(get_db)):
+    try:
+        return get_video_audience_summary(db, video_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

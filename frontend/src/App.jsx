@@ -38,7 +38,10 @@ import VideoModal from "./components/modals/VideoModal";
 import SceneModal from "./components/modals/SceneModal";
 import { exportVideoDavinci, getDavinciExportDownloadUrl, } from "./api/videoApi";
 import VideoAnalyticsPanel from "./components/analytics/VideoAnalyticsPanel";
-import { fetchVideoAnalyticsSummary } from "./api/youtubeAnalyticsApi";
+import {
+  fetchVideoAnalyticsSummary,
+  fetchVideoAudienceSummary,
+} from "./api/youtubeAnalyticsApi";
 import AudienceGenderChart from "./components/audience/AudienceGenderChart";
 import AudienceAgeChart from "./components/audience/AudienceAgeChart";
 
@@ -624,71 +627,24 @@ function App() {
   }
 
   const loadVideoAudienceSummaries = async (videoList) => {
-    const summaries = {};
+    try {
+      const results = await Promise.all(
+        videoList.map(async (video) => {
+          try {
+            const summary = await fetchVideoAudienceSummary(video.id);
+            return [video.id, summary];
+          } catch (error) {
+            console.error(`動画 ${video.id} の視聴者属性取得に失敗`, error);
+            return [video.id, null];
+          }
+        })
+      );
 
-    videoList.forEach((video, index) => {
-      if (index === 0) {
-        summaries[video.id] = {
-          gender_ratio: {
-            male: 62,
-            female: 34,
-            other: 4,
-          },
-          age_distribution: {
-            "13-17": 8,
-            "18-24": 26,
-            "25-34": 31,
-            "35-44": 19,
-            "45-54": 10,
-            "55-64": 4,
-            "65+": 2,
-          },
-          metric_date: "2026-04-12",
-        };
-        return;
-      }
-
-      if (index === 1) {
-        summaries[video.id] = {
-          gender_ratio: {
-            male: 0,
-            female: 0,
-            other: 0,
-          },
-          age_distribution: {
-            "13-17": 0,
-            "18-24": 0,
-            "25-34": 0,
-            "35-44": 0,
-            "45-54": 0,
-            "55-64": 0,
-            "65+": 0,
-          },
-          metric_date: "2026-04-12",
-        };
-        return;
-      }
-
-      summaries[video.id] = {
-        gender_ratio: {
-          male: 55 + (index % 3) * 8,
-          female: 40 - (index % 3) * 6,
-          other: 5,
-        },
-        age_distribution: {
-          "13-17": 6,
-          "18-24": 24,
-          "25-34": 34,
-          "35-44": 18,
-          "45-54": 10,
-          "55-64": 5,
-          "65+": 3,
-        },
-        metric_date: "2026-04-12",
-      };
-    });
-
-    setVideoAudienceSummaries(summaries);
+      const summaryMap = Object.fromEntries(results);
+      setVideoAudienceSummaries(summaryMap);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   async function loadVideoAnalyticsSummaries(videoList) {
