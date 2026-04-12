@@ -37,6 +37,7 @@ import AssetEditModal from "./components/modals/AssetEditModal";
 import VideoModal from "./components/modals/VideoModal";
 import SceneModal from "./components/modals/SceneModal";
 import { exportVideoDavinci, getDavinciExportDownloadUrl, } from "./api/videoApi";
+import VideoAnalyticsPanel from "./components/analytics/VideoAnalyticsPanel";
 
 const initialSceneForm = {
   title: "",
@@ -2144,6 +2145,7 @@ function App() {
                 </DragOverlay>
               </DndContext>
             )}
+            <VideoAnalyticsPanel selectedVideo={selectedVideo} />
           </section>
         )}
 
