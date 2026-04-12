@@ -32,6 +32,7 @@ def migrate_video_columns(engine):
             "video_path": "TEXT",
             "youtube_url": "TEXT",
             "youtube_id": "TEXT",
+            "analytics_source": "TEXT DEFAULT 'mock' NOT NULL",
             "published_at": "TEXT",
             "concept": "TEXT",
             "target": "TEXT",

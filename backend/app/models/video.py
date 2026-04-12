@@ -23,7 +23,7 @@ class Video(Base):
     target = Column(String, nullable=True)
     goal = Column(String, nullable=True)
     status = Column(String(50), nullable=False, default="draft")
-
+    analytics_source = Column(String(20), nullable=False, default="mock")
     # 追加: 出力フォーマット設定
     aspect_ratio = Column(String(20), nullable=False, default="9:16")
     frame_width = Column(Integer, nullable=False, default=1080)

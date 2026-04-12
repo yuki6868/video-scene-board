@@ -78,6 +78,7 @@ const initialVideoForm = {
   target: "",
   goal: "",
   status: "draft",
+  analytics_source: "mock",
   aspect_ratio: "9:16",
   frame_width: 1080,
   frame_height: 1920,
@@ -1377,6 +1378,7 @@ function App() {
       video_path: selectedVideo.video_path || "",
       youtube_url: selectedVideo.youtube_url || "",
       youtube_id: selectedVideo.youtube_id || "",
+      analytics_source: selectedVideo.analytics_source || "mock",
       published_at: selectedVideo.published_at
         ? String(selectedVideo.published_at).slice(0, 16)
         : "",

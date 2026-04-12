@@ -133,6 +133,18 @@ function VideoModal({
             </div>
 
             <div className="form-group">
+              <label>分析データ取得元</label>
+              <select
+                name="analytics_source"
+                value={form.analytics_source || "mock"}
+                onChange={onChange}
+              >
+                <option value="mock">ダミーデータ</option>
+                <option value="api">実API</option>
+              </select>
+            </div>
+
+            <div className="form-group">
               <label>投稿日</label>
               <input
                 type="datetime-local"

@@ -16,6 +16,7 @@ class VideoBase(BaseModel):
     target: Optional[str] = None
     goal: Optional[str] = None
     status: str = "draft"
+    analytics_source: str = "mock"
 
     aspect_ratio: str = "9:16"
     frame_width: int = 1080

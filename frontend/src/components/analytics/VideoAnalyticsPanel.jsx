@@ -112,7 +112,7 @@ export default function VideoAnalyticsPanel({ selectedVideo }) {
             <AnalyticsSummaryCards summary={summary} />
             <AnalyticsLineChart analytics={analytics} />
             <AnalyticsDailyTable analytics={analytics} />
-        A</>
+        </>
       )}
     </section>
   );
