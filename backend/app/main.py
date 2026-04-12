@@ -17,6 +17,7 @@ from app.models.video import Video
 from app.models.youtube_analytics_daily import YouTubeAnalyticsDaily
 from app.models.voice_asset import VoiceAsset
 from app.api.youtube_analytics import router as youtube_analytics_router
+from app.api.youtube_auth import router as youtube_auth_router
 
 def column_exists(conn, table, column):
     result = conn.execute(text(f"PRAGMA table_info({table})"))
@@ -274,6 +275,7 @@ app.include_router(video_router)
 app.include_router(task_router)
 app.include_router(voice_asset_router)
 app.include_router(youtube_analytics_router)
+app.include_router(youtube_auth_router)
 
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

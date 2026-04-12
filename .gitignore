@@ -212,3 +212,6 @@ uploads/
 outputs/
 voicevox_core/
 exports/
+
+backend/outputs/youtube_oauth_token.json
+outputs/youtube_oauth_token.json
