@@ -26,6 +26,7 @@ import {
   duplicateVideo,
   uploadVideoThumbnail,
   fetchVideoCredits,
+  fetchVideoDescriptionTemplate,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
 import {
@@ -868,6 +869,25 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("クレジットコピーに失敗しました");
+    }
+  }
+
+  async function handleCopyDescriptionTemplate() {
+    if (!selectedVideo) return;
+
+    try {
+      const data = await fetchVideoDescriptionTemplate(selectedVideo.id);
+
+      if (!data.text) {
+        alert("概要欄テンプレを生成できませんでした");
+        return;
+      }
+
+      await navigator.clipboard.writeText(data.text);
+      alert("概要欄テンプレをコピーしました");
+    } catch (err) {
+      console.error(err);
+      alert("概要欄テンプレのコピーに失敗しました");
     }
   }
 
@@ -2154,6 +2174,14 @@ function App() {
                           onClick={handleCopyCredits}
                         >
                           クレジットをコピー
+                        </button>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={handleCopyDescriptionTemplate}
+                        >
+                          概要欄テンプレをコピー
                         </button>
                       </div>
 

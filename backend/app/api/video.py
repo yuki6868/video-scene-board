@@ -82,18 +82,17 @@ def get_video_credits(video_id: int, db: Session = Depends(get_db)):
     seen = set()
 
     for asset in assets:
-        if not asset.source_note:
+        credit_text = (asset.source_note or "").strip() or (asset.title or "").strip()
+        if not credit_text:
             continue
 
-        note = asset.source_note.strip()
-
-        if not note or note in seen:
+        if not credit_text or credit_text in seen:
             continue
 
-        seen.add(note)
+        seen.add(credit_text)
 
         category = map_category(asset.asset_type)
-        groups[category].append(note)
+        groups[category].append(credit_text)
 
     # テキスト生成
     lines = ["【使用素材・クレジット】"]
@@ -114,6 +113,105 @@ def get_video_credits(video_id: int, db: Session = Depends(get_db)):
         "video_id": video_id,
         "groups": groups,
         "credits": list(seen),
+        "text": text,
+    }
+
+@router.get("/{video_id}/description-template")
+def get_video_description_template(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    assets = (
+        db.query(Asset)
+        .filter(Asset.video_id == video_id)
+        .all()
+    )
+
+    def map_category(asset_type: str):
+        return {
+            "bgm": "BGM",
+            "se": "効果音",
+            "audio": "音声",
+            "voice": "音声",
+            "background": "背景",
+        }.get(asset_type, "その他")
+
+    groups = {
+        "音声": [],
+        "BGM": [],
+        "効果音": [],
+        "背景": [],
+        "その他": [],
+    }
+
+    seen_by_category = {key: set() for key in groups.keys()}
+
+    for asset in assets:
+        source_note = (asset.source_note or "").strip()
+        title = (asset.title or "").strip()
+
+        # source_note があれば優先、なければ title を使う
+        credit_text = source_note or title
+        if not credit_text:
+            continue
+
+        category = map_category(asset.asset_type)
+
+        if credit_text in seen_by_category[category]:
+            continue
+
+        seen_by_category[category].add(credit_text)
+        groups[category].append(credit_text)
+
+    def build_lines(title, items):
+        lines = [f"【{title}】"]
+        if items:
+            lines.extend([f"・{item}" for item in items])
+        else:
+            lines.append("・なし")
+        return lines
+
+    hashtag_text = ""
+    if video.tags:
+        raw_tags = [tag.strip() for tag in video.tags.split(",") if tag.strip()]
+        hashtag_text = " ".join(
+            [tag if tag.startswith("#") else f"#{tag.replace(' ', '')}" for tag in raw_tags]
+        )
+
+    lines = [
+        f"【{video.title}】",
+        "",
+        (video.description or "").strip() or "ここに動画の説明を書いてください。",
+        "",
+        "▼使用素材・クレジット",
+        "",
+        *build_lines("音声", groups["音声"]),
+        "",
+        *build_lines("BGM", groups["BGM"]),
+        "",
+        *build_lines("効果音", groups["効果音"]),
+        "",
+        *build_lines("背景", groups["背景"]),
+    ]
+
+    if groups["その他"]:
+        lines.extend([
+            "",
+            *build_lines("その他", groups["その他"]),
+        ])
+
+    lines.extend([
+        "",
+        "▼タグ",
+        hashtag_text or "#動画 #YouTube",
+    ])
+
+    text = "\n".join(lines)
+
+    return {
+        "video_id": video_id,
+        "groups": groups,
         "text": text,
     }
 

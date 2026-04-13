@@ -113,3 +113,15 @@ export async function fetchVideoCredits(videoId) {
 
   return response.json();
 }
+
+export async function fetchVideoDescriptionTemplate(videoId) {
+  const response = await fetch(
+    `${API_BASE_URL}/videos/${videoId}/description-template`
+  );
+
+  if (!response.ok) {
+    throw new Error("概要欄テンプレの取得に失敗しました");
+  }
+
+  return response.json();
+}
