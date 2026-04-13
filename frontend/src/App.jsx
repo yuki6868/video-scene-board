@@ -43,6 +43,7 @@ import VideoAnalyticsPanel from "./components/analytics/VideoAnalyticsPanel";
 import {
   fetchVideoAnalyticsSummary,
   fetchVideoAudienceSummary,
+  syncAllVideoAnalytics,
 } from "./api/youtubeAnalyticsApi";
 import AudienceGenderChart from "./components/audience/AudienceGenderChart";
 import AudienceAgeChart from "./components/audience/AudienceAgeChart";
@@ -779,6 +780,7 @@ function App() {
   const [descriptionPreviewText, setDescriptionPreviewText] = useState("");
   const [isCreditsPreviewOpen, setIsCreditsPreviewOpen] = useState(false);
   const [creditsPreviewText, setCreditsPreviewText] = useState("");
+  const [isSyncingAllAnalytics, setIsSyncingAllAnalytics] = useState(false);
 
   const initialNewTask = {
     create_mode: "section",
@@ -855,7 +857,6 @@ function App() {
     }
 
     await loadVideoAnalyticsSummaries(data);
-    await loadVideoAudienceSummaries(data);
   };
 
   function handleStartEdit(task) {
@@ -968,6 +969,26 @@ function App() {
       setVideoAnalyticsSummaries(summaryMap);
     } catch (error) {
       console.error(error);
+    }
+  }
+
+  async function handleSyncAllAnalytics() {
+    if (isSyncingAllAnalytics) return;
+
+    setIsSyncingAllAnalytics(true);
+
+    try {
+      const result = await syncAllVideoAnalytics();
+      await loadVideos();
+
+      alert(
+        `全動画の分析同期が完了しました\n成功: ${result.success_count}件 / 失敗: ${result.error_count}件`
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "全動画の分析同期に失敗しました");
+    } finally {
+      setIsSyncingAllAnalytics(false);
     }
   }
 
@@ -1384,6 +1405,22 @@ function App() {
 
     loadVoiceAssets(selectedScene.id);
   }, [selectedScene]);
+
+  useEffect(() => {
+    if (!selectedVideo?.id) return;
+
+    (async () => {
+      try {
+        const summary = await fetchVideoAudienceSummary(selectedVideo.id);
+        setVideoAudienceSummaries((prev) => ({
+          ...prev,
+          [selectedVideo.id]: summary,
+        }));
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, [selectedVideo?.id]);
 
   const filteredScenes = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -2126,6 +2163,15 @@ function App() {
               )}
             </select>
           </div>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleSyncAllAnalytics}
+            disabled={isSyncingAllAnalytics}
+          >
+            {isSyncingAllAnalytics ? "全動画を同期中..." : "全動画の分析を更新"}
+          </button>
 
           <div className="video-top-section">
             <div className="video-top-header">

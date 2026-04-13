@@ -176,3 +176,40 @@ def sync_video_analytics_daily(db: Session, video_id: int) -> list[YouTubeAnalyt
         .order_by(YouTubeAnalyticsDaily.metric_date.asc())
         .all()
     )
+
+def sync_all_video_analytics_daily(db: Session) -> dict:
+    videos = (
+        db.query(Video)
+        .filter(Video.youtube_id.isnot(None))
+        .filter(Video.youtube_id != "")
+        .all()
+    )
+
+    results = []
+    success_count = 0
+    error_count = 0
+
+    for video in videos:
+        try:
+            sync_video_analytics_daily(db, video.id)
+            results.append({
+                "video_id": video.id,
+                "title": video.title,
+                "status": "success",
+            })
+            success_count += 1
+        except Exception as e:
+            results.append({
+                "video_id": video.id,
+                "title": video.title,
+                "status": "error",
+                "message": str(e),
+            })
+            error_count += 1
+
+    return {
+        "total": len(videos),
+        "success_count": success_count,
+        "error_count": error_count,
+        "results": results,
+    }

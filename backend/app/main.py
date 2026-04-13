@@ -18,6 +18,10 @@ from app.models.youtube_analytics_daily import YouTubeAnalyticsDaily
 from app.models.voice_asset import VoiceAsset
 from app.api.youtube_analytics import router as youtube_analytics_router
 from app.api.youtube_auth import router as youtube_auth_router
+import asyncio
+from contextlib import asynccontextmanager
+from app.db.database import SessionLocal
+from app.services.youtube.youtube_analytics_service import sync_all_video_analytics_daily
 
 def column_exists(conn, table, column):
     result = conn.execute(text(f"PRAGMA table_info({table})"))
@@ -273,6 +277,23 @@ def backfill_task_asset_links():
         db.commit()
         print(f"BACKFILL TASK-ASSET LINKS: {linked_count} tasks linked")
 
+async def daily_analytics_sync_loop():
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                result = sync_all_video_analytics_daily(db)
+                print(
+                    f"[daily analytics sync] total={result['total']} "
+                    f"success={result['success_count']} error={result['error_count']}"
+                )
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[daily analytics sync] failed: {e}")
+
+        await asyncio.sleep(60 * 60 * 24)
+
 migrate_voice_assets_table(engine)
 Base.metadata.create_all(bind=engine)
 migrate_task_parent_column(engine)
@@ -285,7 +306,15 @@ migrate_scene_columns()
 migrate_task_columns()
 backfill_task_asset_links()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(daily_analytics_sync_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

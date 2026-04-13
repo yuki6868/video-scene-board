@@ -12,6 +12,7 @@ from app.services.youtube.youtube_analytics_service import (
     sync_video_analytics_daily,
     get_video_analytics_summary,
     get_video_audience_summary,
+    sync_all_video_analytics_daily,
 )
 
 router = APIRouter(prefix="/videos", tags=["youtube-analytics"])
@@ -47,3 +48,7 @@ def read_video_audience_summary(video_id: int, db: Session = Depends(get_db)):
         return get_video_audience_summary(db, video_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/analytics/sync-all")
+def sync_all_video_analytics(db: Session = Depends(get_db)):
+    return sync_all_video_analytics_daily(db)

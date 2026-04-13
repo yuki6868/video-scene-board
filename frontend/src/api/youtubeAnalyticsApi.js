@@ -49,3 +49,16 @@ export async function fetchVideoAudienceSummary(videoId) {
 
   return response.json();
 }
+
+export async function syncAllVideoAnalytics() {
+  const response = await fetch(`${API_BASE_URL}/videos/analytics/sync-all`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`全動画の分析データ同期に失敗しました: ${errorText}`);
+  }
+
+  return response.json();
+}
