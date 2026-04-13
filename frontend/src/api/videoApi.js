@@ -103,3 +103,13 @@ export async function uploadVideoThumbnail(file) {
 
   return response.json();
 }
+
+export async function fetchVideoCredits(videoId) {
+  const response = await fetch(`http://127.0.0.1:8000/videos/${videoId}/credits`);
+
+  if (!response.ok) {
+    throw new Error("クレジットの取得に失敗しました");
+  }
+
+  return response.json();
+}

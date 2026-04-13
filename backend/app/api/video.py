@@ -22,6 +22,7 @@ from app.services.davinci_export import (
     create_davinci_export_zip,
     export_davinci_manifest,
 )
+from app.models.asset import Asset
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -54,6 +55,40 @@ def create_video(video: VideoCreate, db: Session = Depends(get_db)):
     db.refresh(new_video)
     return new_video
 
+@router.get("/{video_id}/credits")
+def get_video_credits(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    assets = (
+        db.query(Asset)
+        .filter(Asset.video_id == video_id)
+        .order_by(Asset.scene_id.asc(), Asset.id.asc())
+        .all()
+    )
+
+    credit_lines = []
+    seen = set()
+
+    for asset in assets:
+        note = (asset.source_note or "").strip()
+        if not note:
+            continue
+        if note in seen:
+            continue
+        seen.add(note)
+        credit_lines.append(note)
+
+    text = ""
+    if credit_lines:
+        text = "【使用素材・クレジット】\n" + "\n".join(credit_lines)
+
+    return {
+        "video_id": video_id,
+        "credits": credit_lines,
+        "text": text,
+    }
 
 @router.get("/", response_model=list[VideoResponse])
 def list_videos(db: Session = Depends(get_db)):

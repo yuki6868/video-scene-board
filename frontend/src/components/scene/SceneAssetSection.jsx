@@ -29,6 +29,7 @@ const initialAssetForm = {
   status: "idea",
   location_type: "none",
   path_or_url: "",
+  source_note: "",
   memo: "",
   file: null,
 };
@@ -124,6 +125,7 @@ export default function SceneAssetSection({
     formData.append("asset_type", assetForm.asset_type);
     formData.append("status", assetForm.status);
     formData.append("location_type", assetForm.location_type);
+    formData.append("source_note", assetForm.source_note || "");
     formData.append("memo", assetForm.memo || "");
 
     if (assetForm.file) {
@@ -291,6 +293,15 @@ export default function SceneAssetSection({
           </select>
 
           <textarea
+            placeholder="クレジット表記 例: BGM: DOVA-SYNDROME https://dova-s.jp/"
+            value={assetForm.source_note}
+            onChange={(e) =>
+              setAssetForm((prev) => ({ ...prev, source_note: e.target.value }))
+            }
+            rows={2}
+          />
+
+          <textarea
             placeholder="メモ"
             value={assetForm.memo}
             onChange={(e) =>
@@ -350,6 +361,7 @@ export default function SceneAssetSection({
                       />
                     </div>
                   )}
+                  {asset.source_note && <div>クレジット: {asset.source_note}</div>}
                   {asset.memo && <div>メモ: {asset.memo}</div>}
 
                   <div className="asset-item-actions">

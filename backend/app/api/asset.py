@@ -74,6 +74,7 @@ def create_asset(
     asset_type: str = Form(...),
     status: str = Form(...),
     location_type: str = Form(...),
+    source_note: str = Form(""),
     memo: str = Form(""),
     file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
@@ -101,6 +102,7 @@ def create_asset(
         status=status,
         location_type=location_type,
         path_or_url=path,
+        source_note=source_note,
         memo=memo,
     )
 

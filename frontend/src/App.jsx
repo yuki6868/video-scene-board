@@ -25,6 +25,7 @@ import {
   deleteVideo,
   duplicateVideo,
   uploadVideoThumbnail,
+  fetchVideoCredits,
 } from "./api/videoApi";
 import { fetchTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
 import {
@@ -845,6 +846,25 @@ function App() {
       task_type: task.task_type,
       scene_id: task.scene_id,
     });
+  }
+
+  async function handleCopyCredits() {
+    if (!selectedVideo) return;
+
+    try {
+      const data = await fetchVideoCredits(selectedVideo.id);
+
+      if (!data.text) {
+        alert("クレジット対象の素材がまだありません");
+        return;
+      }
+
+      await navigator.clipboard.writeText(data.text);
+      alert("クレジットをコピーしました");
+    } catch (err) {
+      console.error(err);
+      alert("クレジット生成に失敗しました");
+    }
   }
 
   const loadVideoAudienceSummaries = async (videoList) => {
@@ -2122,6 +2142,16 @@ function App() {
                       <p className="selected-video-description">
                         {truncateDescription(selectedVideo.description)}
                       </p>
+
+                      <div className="selected-video-actions">
+                        <button
+                          type="button"
+                          className="submit-button"
+                          onClick={handleCopyCredits}
+                        >
+                          クレジット生成
+                        </button>
+                      </div>
 
                       <div className="video-analytics-mini">
                         <div className="video-analytics-mini-item">

@@ -11,15 +11,16 @@ export default function AssetEditModal({
   useEffect(() => {
     if (asset) {
         setForm({
-        title: asset.title || "",
-        asset_type: asset.asset_type || "material",
-        status: asset.status || "idea",
-        location_type: asset.location_type || "none",
-        path_or_url: asset.path_or_url || "",
-        memo: asset.memo || "",
-        file: null,
-        video_id: asset.video_id,
-        scene_id: asset.scene_id,
+          title: asset.title || "",
+          asset_type: asset.asset_type || "material",
+          status: asset.status || "idea",
+          location_type: asset.location_type || "none",
+          path_or_url: asset.path_or_url || "",
+          source_note: asset.source_note || "",
+          memo: asset.memo || "",
+          file: null,
+          video_id: asset.video_id,
+          scene_id: asset.scene_id,
         });
       }
     }, [asset]);
@@ -145,6 +146,18 @@ export default function AssetEditModal({
                     )}
                 </div>
             )}
+
+            <div className="form-field form-field-full">
+              <label htmlFor="asset-source-note">クレジット表記</label>
+              <textarea
+                id="asset-source-note"
+                name="source_note"
+                value={form.source_note}
+                onChange={handleChange}
+                placeholder="例: BGM: DOVA-SYNDROME https://dova-s.jp/"
+                rows={3}
+              />
+            </div>
 
             <div className="form-field form-field-full">
               <label htmlFor="asset-memo">メモ</label>
