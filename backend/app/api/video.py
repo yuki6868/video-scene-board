@@ -12,6 +12,9 @@ from fastapi import UploadFile, File, Form
 from app.dependencies.db import get_db
 from app.models.scene import Scene
 from app.models.video import Video
+from app.models.asset import Asset
+from app.models.task import Task
+from app.models.voice_asset import VoiceAsset
 from app.schemas.video import (
     DavinciExportRequest,
     VideoCreate,
@@ -313,6 +316,8 @@ def duplicate_video(video_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    scene_id_map = {}
+
     for scene in source_scenes:
         duplicated_scene = Scene(
             video_id=duplicated_video.id,
@@ -320,8 +325,116 @@ def duplicate_video(video_id: int, db: Session = Depends(get_db)):
             script=scene.script,
             materials=scene.materials,
             position=scene.position,
+            section_type=scene.section_type,
+            status=scene.status,
+            duration_seconds=scene.duration_seconds,
+            audio_path=scene.audio_path,
+            character_name=scene.character_name,
+            character_expression=scene.character_expression,
+            background_path=scene.background_path,
+            background_fit_mode=scene.background_fit_mode,
+            se_path=scene.se_path,
+            telop=scene.telop,
+            direction=scene.direction,
+            edit_note=scene.edit_note,
         )
         db.add(duplicated_scene)
+        db.flush()
+        scene_id_map[scene.id] = duplicated_scene.id
+
+    source_assets = (
+        db.query(Asset)
+        .filter(Asset.video_id == source_video.id)
+        .order_by(Asset.id.asc())
+        .all()
+    )
+
+    asset_id_map = {}
+
+    for asset in source_assets:
+        duplicated_asset = Asset(
+            video_id=duplicated_video.id,
+            scene_id=scene_id_map.get(asset.scene_id),
+            asset_type=asset.asset_type,
+            title=asset.title,
+            status=asset.status,
+            location_type=asset.location_type,
+            path_or_url=asset.path_or_url,
+            relative_path=asset.relative_path,
+            source_note=asset.source_note,
+            search_keyword=asset.search_keyword,
+            memo=asset.memo,
+        )
+        db.add(duplicated_asset)
+        db.flush()
+        asset_id_map[asset.id] = duplicated_asset.id
+
+    source_voice_assets = (
+        db.query(VoiceAsset)
+        .join(Scene, VoiceAsset.scene_id == Scene.id)
+        .filter(Scene.video_id == source_video.id)
+        .order_by(VoiceAsset.id.asc())
+        .all()
+    )
+
+    for voice_asset in source_voice_assets:
+        duplicated_scene_id = scene_id_map.get(voice_asset.scene_id)
+        if duplicated_scene_id is None:
+            continue
+
+        duplicated_voice_asset = VoiceAsset(
+            scene_id=duplicated_scene_id,
+            text=voice_asset.text,
+            style_id=voice_asset.style_id,
+            character_name=voice_asset.character_name,
+            style_name=voice_asset.style_name,
+            speed=voice_asset.speed,
+            pitch=voice_asset.pitch,
+            intonation=voice_asset.intonation,
+            volume=voice_asset.volume,
+            audio_path=voice_asset.audio_path,
+            subtitle_png_path=voice_asset.subtitle_png_path,
+            is_selected=voice_asset.is_selected,
+        )
+        db.add(duplicated_voice_asset)
+
+    source_tasks = (
+        db.query(Task)
+        .filter(Task.video_id == source_video.id)
+        .order_by(Task.sort_order.asc(), Task.id.asc())
+        .all()
+    )
+
+    task_id_map = {}
+
+    for task in source_tasks:
+        duplicated_task = Task(
+            video_id=duplicated_video.id,
+            scene_id=scene_id_map.get(task.scene_id),
+            asset_id=asset_id_map.get(task.asset_id),
+            parent_task_id=None,
+            title=task.title,
+            detail=task.detail,
+            task_type=task.task_type,
+            priority=task.priority,
+            status=task.status,
+            sort_order=task.sort_order,
+        )
+        db.add(duplicated_task)
+        db.flush()
+        task_id_map[task.id] = duplicated_task.id
+
+    for task in source_tasks:
+        if task.parent_task_id is None:
+            continue
+
+        duplicated_task_id = task_id_map.get(task.id)
+        duplicated_parent_task_id = task_id_map.get(task.parent_task_id)
+        if duplicated_task_id is None or duplicated_parent_task_id is None:
+            continue
+
+        duplicated_task = db.query(Task).filter(Task.id == duplicated_task_id).first()
+        duplicated_task.parent_task_id = duplicated_parent_task_id
 
     db.commit()
     db.refresh(duplicated_video)

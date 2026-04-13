@@ -9,6 +9,7 @@ from app.models.task import Task
 from app.services.asset_generation import get_scene_initial_assets
 from app.models.asset import Asset
 from app.models.video import Video
+from app.models.voice_asset import VoiceAsset
 from app.schemas.scene import (
     SceneCreate,
     SceneResponse,
@@ -231,6 +232,7 @@ def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
         character_name=source_scene.character_name,
         character_expression=source_scene.character_expression,
         background_path=source_scene.background_path,
+        background_fit_mode=source_scene.background_fit_mode,
         se_path=source_scene.se_path,
         telop=source_scene.telop,
         direction=source_scene.direction,
@@ -238,6 +240,97 @@ def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
     )
 
     db.add(duplicated_scene)
+    db.flush()
+
+    source_assets = (
+        db.query(Asset)
+        .filter(Asset.scene_id == source_scene.id)
+        .order_by(Asset.id.asc())
+        .all()
+    )
+
+    asset_id_map = {}
+
+    for asset in source_assets:
+        duplicated_asset = Asset(
+            video_id=source_scene.video_id,
+            scene_id=duplicated_scene.id,
+            asset_type=asset.asset_type,
+            title=asset.title,
+            status=asset.status,
+            location_type=asset.location_type,
+            path_or_url=asset.path_or_url,
+            relative_path=asset.relative_path,
+            source_note=asset.source_note,
+            search_keyword=asset.search_keyword,
+            memo=asset.memo,
+        )
+        db.add(duplicated_asset)
+        db.flush()
+        asset_id_map[asset.id] = duplicated_asset.id
+
+    source_voice_assets = (
+        db.query(VoiceAsset)
+        .filter(VoiceAsset.scene_id == source_scene.id)
+        .order_by(VoiceAsset.id.asc())
+        .all()
+    )
+
+    for voice_asset in source_voice_assets:
+        duplicated_voice_asset = VoiceAsset(
+            scene_id=duplicated_scene.id,
+            text=voice_asset.text,
+            style_id=voice_asset.style_id,
+            character_name=voice_asset.character_name,
+            style_name=voice_asset.style_name,
+            speed=voice_asset.speed,
+            pitch=voice_asset.pitch,
+            intonation=voice_asset.intonation,
+            volume=voice_asset.volume,
+            audio_path=voice_asset.audio_path,
+            subtitle_png_path=voice_asset.subtitle_png_path,
+            is_selected=voice_asset.is_selected,
+        )
+        db.add(duplicated_voice_asset)
+
+    source_tasks = (
+        db.query(Task)
+        .filter(Task.scene_id == source_scene.id)
+        .order_by(Task.sort_order.asc(), Task.id.asc())
+        .all()
+    )
+
+    task_id_map = {}
+
+    for task in source_tasks:
+        duplicated_task = Task(
+            video_id=source_scene.video_id,
+            scene_id=duplicated_scene.id,
+            asset_id=asset_id_map.get(task.asset_id),
+            parent_task_id=None,
+            title=task.title,
+            detail=task.detail,
+            task_type=task.task_type,
+            priority=task.priority,
+            status=task.status,
+            sort_order=task.sort_order,
+        )
+        db.add(duplicated_task)
+        db.flush()
+        task_id_map[task.id] = duplicated_task.id
+
+    for task in source_tasks:
+        if task.parent_task_id is None:
+            continue
+
+        duplicated_task_id = task_id_map.get(task.id)
+        duplicated_parent_task_id = task_id_map.get(task.parent_task_id)
+        if duplicated_task_id is None or duplicated_parent_task_id is None:
+            continue
+
+        duplicated_task = db.query(Task).filter(Task.id == duplicated_task_id).first()
+        duplicated_task.parent_task_id = duplicated_parent_task_id
+
     db.commit()
     db.refresh(duplicated_scene)
 
@@ -256,21 +349,30 @@ def delete_scene(scene_id: int, db: Session = Depends(get_db)):
     db.query(Task).filter(Task.scene_id == scene_id).delete()
     db.query(Asset).filter(Asset.scene_id == scene_id).delete()
 
-    # シーン削除
     db.delete(scene)
-    db.commit()
+    db.flush()
 
     remaining_scenes = (
         db.query(Scene)
         .filter(Scene.video_id == video_id, Scene.position > deleted_position)
-        .order_by(Scene.position.asc())
+        .order_by(Scene.position.asc(), Scene.id.asc())
         .all()
     )
 
+    for remaining_scene in remaining_scenes:
+        remaining_scene.position -= 1
+
     db.commit()
 
-    for remaining_scene in remaining_scenes:
-        sync_task_titles_for_scene(db, remaining_scene)
+    updated_scenes = (
+        db.query(Scene)
+        .filter(Scene.video_id == video_id)
+        .order_by(Scene.position.asc(), Scene.id.asc())
+        .all()
+    )
+
+    for updated_scene in updated_scenes:
+        sync_task_titles_for_scene(db, updated_scene)
 
     db.commit()
 
