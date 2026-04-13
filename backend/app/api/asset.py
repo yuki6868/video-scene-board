@@ -74,12 +74,13 @@ def create_asset(
     asset_type: str = Form(...),
     status: str = Form(...),
     location_type: str = Form(...),
+    path_or_url: str = Form(""),
     source_note: str = Form(""),
     memo: str = Form(""),
     file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
-    path = None
+    path = path_or_url or None
 
     if file:
         subdir = get_subdir(asset_type)

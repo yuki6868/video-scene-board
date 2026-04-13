@@ -62,7 +62,14 @@ export async function updateAsset(assetId, asset) {
   const formData = new FormData();
 
   Object.entries(asset).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
+    if (key === "file") {
+      if (value) {
+        formData.append(key, value);
+      }
+      return;
+    }
+
+    if (value !== undefined && value !== null) {
       formData.append(key, value);
     }
   });

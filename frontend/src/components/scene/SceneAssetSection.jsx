@@ -125,6 +125,7 @@ export default function SceneAssetSection({
     formData.append("asset_type", assetForm.asset_type);
     formData.append("status", assetForm.status);
     formData.append("location_type", assetForm.location_type);
+    formData.append("path_or_url", assetForm.path_or_url || "");
     formData.append("source_note", assetForm.source_note || "");
     formData.append("memo", assetForm.memo || "");
 
@@ -293,12 +294,16 @@ export default function SceneAssetSection({
           </select>
 
           <textarea
-            placeholder="クレジット表記 例: BGM: DOVA-SYNDROME https://dova-s.jp/"
+            placeholder={`クレジット表記
+          例:
+          BGM: DOVA-SYNDROME https://dova-s.jp/
+          効果音: OtoLogic https://otologic.jp/
+          音声: VOICEVOX ずんだもん https://voicevox.hiroshiba.jp/`}
             value={assetForm.source_note}
             onChange={(e) =>
               setAssetForm((prev) => ({ ...prev, source_note: e.target.value }))
             }
-            rows={2}
+            rows={4}
           />
 
           <textarea

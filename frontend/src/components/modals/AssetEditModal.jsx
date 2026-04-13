@@ -154,8 +154,11 @@ export default function AssetEditModal({
                 name="source_note"
                 value={form.source_note}
                 onChange={handleChange}
-                placeholder="例: BGM: DOVA-SYNDROME https://dova-s.jp/"
-                rows={3}
+                placeholder={`例:
+              BGM: DOVA-SYNDROME https://dova-s.jp/
+              効果音: OtoLogic https://otologic.jp/
+              音声: VOICEVOX ずんだもん https://voicevox.hiroshiba.jp/`}
+                rows={4}
               />
             </div>
 
