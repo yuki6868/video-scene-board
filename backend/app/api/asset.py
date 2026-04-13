@@ -136,15 +136,15 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
         detail_lines.append(f"メモ: {asset.memo}")
 
     # 素材種類ごとにタイトル / task_type / 親タスク種別を決める
-    if asset.asset_type == "audio":
+    if asset.asset_type in ("audio", "voice", "音声"):
         task_title = f"ナレーション作成: {asset.title}"
         task_type = "音声"
         parent_task_type = "voice"
-    elif asset.asset_type == "background":
+    elif asset.asset_type in ("background", "背景"):
         task_title = f"背景配置: {asset.title}"
         task_type = "背景"
         parent_task_type = "background"
-    elif asset.asset_type == "se":
+    elif asset.asset_type in ("se", "SE", "効果音"):
         task_title = f"効果音追加: {asset.title}"
         task_type = "SE"
         parent_task_type = "asset"
