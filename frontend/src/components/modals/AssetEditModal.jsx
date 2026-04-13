@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchCreditSources } from "../../api/assetApi";
 
 export default function AssetEditModal({
   isOpen,
@@ -7,6 +8,7 @@ export default function AssetEditModal({
   onSave,
 }) {
   const [form, setForm] = useState(null);
+  const [creditSourceOptions, setCreditSourceOptions] = useState([]);
 
   useEffect(() => {
     if (asset) {
@@ -22,25 +24,52 @@ export default function AssetEditModal({
           video_id: asset.video_id,
           scene_id: asset.scene_id,
         });
+        loadCreditSourceOptions(asset.video_id, asset.asset_type || "material");
       }
     }, [asset]);
 
   if (!isOpen || !form) return null;
 
+  async function loadCreditSourceOptions(videoId, assetType) {
+    if (!videoId) {
+      setCreditSourceOptions([]);
+      return;
+    }
+
+    try {
+      const data = await fetchCreditSources({
+        videoId,
+        assetType,
+      });
+      setCreditSourceOptions(data);
+    } catch (err) {
+      console.error(err);
+      setCreditSourceOptions([]);
+    }
+  }
+
   function handleChange(e) {
     const { name, value, files } = e.target;
 
     if (name === "file") {
-        const file = files?.[0] || null;
-        setForm((prev) => ({
+      const file = files?.[0] || null;
+      setForm((prev) => ({
         ...prev,
         file,
         path_or_url: file ? file.name : prev.path_or_url,
-        }));
-        return;
+      }));
+      return;
     }
 
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+
+      if (name === "asset_type") {
+        loadCreditSourceOptions(next.video_id, value);
+      }
+
+      return next;
+    });
   }
 
   async function handleSubmit(e) {
@@ -160,6 +189,34 @@ export default function AssetEditModal({
               音声: VOICEVOX ずんだもん https://voicevox.hiroshiba.jp/`}
                 rows={4}
               />
+            </div>
+
+            <div className="form-field form-field-full">
+              <label>過去に使ったクレジット候補</label>
+
+              {creditSourceOptions.length === 0 ? (
+                <p className="asset-credit-source-empty">
+                  この種別ではまだ候補がありません
+                </p>
+              ) : (
+                <div className="asset-credit-source-list">
+                  {creditSourceOptions.map((option) => (
+                    <button
+                      key={`${option.asset_id}-${option.asset_type}`}
+                      type="button"
+                      className="asset-credit-source-chip"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          source_note: option.source_note,
+                        }))
+                      }
+                    >
+                      {option.asset_title}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-field form-field-full">

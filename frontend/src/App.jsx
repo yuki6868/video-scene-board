@@ -759,6 +759,10 @@ function App() {
   const [isDavinciExporting, setIsDavinciExporting] = useState(false);
   const [videoAnalyticsSummaries, setVideoAnalyticsSummaries] = useState({});
   const [videoAudienceSummaries, setVideoAudienceSummaries] = useState({});
+  const [isDescriptionPreviewOpen, setIsDescriptionPreviewOpen] = useState(false);
+  const [descriptionPreviewText, setDescriptionPreviewText] = useState("");
+  const [isCreditsPreviewOpen, setIsCreditsPreviewOpen] = useState(false);
+  const [creditsPreviewText, setCreditsPreviewText] = useState("");
 
   const initialNewTask = {
     create_mode: "section",
@@ -853,22 +857,29 @@ function App() {
     if (!selectedVideo) return;
 
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/videos/${selectedVideo.id}/credits`
-      );
-
-      const data = await res.json();
+      const data = await fetchVideoCredits(selectedVideo.id);
 
       if (!data.text) {
-        alert("クレジット対象の素材がまだありません");
+        alert("クレジットを生成できませんでした");
         return;
       }
 
-      await navigator.clipboard.writeText(data.text);
-      alert("クレジットをコピーしました");
+      setCreditsPreviewText(data.text);
+      setIsCreditsPreviewOpen(true);
     } catch (err) {
       console.error(err);
-      alert("クレジットコピーに失敗しました");
+      alert("クレジットの取得に失敗しました");
+    }
+  }
+
+  async function handleConfirmCopyCredits() {
+    try {
+      await navigator.clipboard.writeText(creditsPreviewText);
+      alert("クレジットをコピーしました");
+      setIsCreditsPreviewOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("クレジットのコピーに失敗しました");
     }
   }
 
@@ -883,8 +894,19 @@ function App() {
         return;
       }
 
-      await navigator.clipboard.writeText(data.text);
+      setDescriptionPreviewText(data.text);
+      setIsDescriptionPreviewOpen(true);
+    } catch (err) {
+      console.error(err);
+      alert("概要欄テンプレの取得に失敗しました");
+    }
+  }
+
+  async function handleConfirmCopyDescriptionTemplate() {
+    try {
+      await navigator.clipboard.writeText(descriptionPreviewText);
       alert("概要欄テンプレをコピーしました");
+      setIsDescriptionPreviewOpen(false);
     } catch (err) {
       console.error(err);
       alert("概要欄テンプレのコピーに失敗しました");
@@ -2787,6 +2809,98 @@ function App() {
         splitVideoScriptToSceneSeeds={splitVideoScriptToSceneSeeds}
         inferSectionTypeFromTitle={inferSectionTypeFromTitle}
       />
+
+      {isCreditsPreviewOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setIsCreditsPreviewOpen(false)}
+        >
+          <div
+            className="modal-content preview-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>クレジットのプレビュー</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setIsCreditsPreviewOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="form-field">
+              <pre className="copy-preview-box">
+                {creditsPreviewText}
+              </pre>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={() => setIsCreditsPreviewOpen(false)}
+              >
+                閉じる
+              </button>
+              <button
+                type="button"
+                className="submit-button"
+                onClick={handleConfirmCopyCredits}
+              >
+                コピーする
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDescriptionPreviewOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setIsDescriptionPreviewOpen(false)}
+        >
+          <div
+            className="modal-content preview-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>概要欄テンプレのプレビュー</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setIsDescriptionPreviewOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="form-field">
+              <pre className="copy-preview-box">
+                {descriptionPreviewText}
+              </pre>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={() => setIsDescriptionPreviewOpen(false)}
+              >
+                閉じる
+              </button>
+              <button
+                type="button"
+                className="submit-button"
+                onClick={handleConfirmCopyDescriptionTemplate}
+              >
+                コピーする
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

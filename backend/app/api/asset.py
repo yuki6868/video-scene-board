@@ -57,6 +57,42 @@ def list_assets(
     assets = query.order_by(Asset.id.desc()).all()
     return assets
 
+@router.get("/credit-sources")
+def list_credit_sources(
+    video_id: int = Query(...),
+    asset_type: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Asset).filter(Asset.video_id == video_id)
+
+    if asset_type:
+        query = query.filter(Asset.asset_type == asset_type)
+
+    assets = query.order_by(Asset.updated_at.desc(), Asset.id.desc()).all()
+
+    results = []
+    seen = set()
+
+    for asset in assets:
+        source_note = (asset.source_note or "").strip()
+        if not source_note:
+            continue
+
+        key = source_note
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        results.append({
+            "source_note": source_note,
+            "asset_type": asset.asset_type,
+            "asset_title": asset.title,
+            "asset_id": asset.id,
+        })
+
+    return results
+
 
 @router.get("/{asset_id}", response_model=AssetResponse)
 def get_asset(asset_id: int, db: Session = Depends(get_db)):

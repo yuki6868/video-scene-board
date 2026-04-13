@@ -109,3 +109,25 @@ export async function generateTaskFromAsset(assetId) {
 
   return response.json();
 }
+
+export async function fetchCreditSources({ videoId, assetType }) {
+  const query = new URLSearchParams();
+
+  if (videoId != null) {
+    query.append("video_id", videoId);
+  }
+
+  if (assetType) {
+    query.append("asset_type", assetType);
+  }
+
+  const response = await fetch(
+    `${ASSET_API_BASE_URL}/credit-sources?${query.toString()}`
+  );
+
+  if (!response.ok) {
+    throw new Error("クレジット候補の取得に失敗しました");
+  }
+
+  return response.json();
+}

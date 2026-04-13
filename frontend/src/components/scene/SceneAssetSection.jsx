@@ -4,6 +4,7 @@ import {
   updateAsset,
   deleteAsset,
   generateTaskFromAsset,
+  fetchCreditSources,
 } from "../../api/assetApi";
 import AssetEditModal from "../modals/AssetEditModal";
 
@@ -79,6 +80,7 @@ export default function SceneAssetSection({
   const [editingAssetId, setEditingAssetId] = useState(null);
   const [editingAsset, setEditingAsset] = useState(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [creditSourceOptions, setCreditSourceOptions] = useState([]);
 
   async function loadAssets() {
     if (!editingSceneId) {
@@ -95,6 +97,24 @@ export default function SceneAssetSection({
     }
   }
 
+  async function loadCreditSourceOptions(nextAssetType = assetForm.asset_type) {
+    if (!videoId) {
+      setCreditSourceOptions([]);
+      return;
+    }
+
+    try {
+      const data = await fetchCreditSources({
+        videoId,
+        assetType: nextAssetType,
+      });
+      setCreditSourceOptions(data);
+    } catch (err) {
+      console.error(err);
+      setCreditSourceOptions([]);
+    }
+  }
+
   useEffect(() => {
     if (!editingSceneId) {
       setAssets([]);
@@ -104,6 +124,7 @@ export default function SceneAssetSection({
     }
 
     loadAssets();
+    loadCreditSourceOptions(initialAssetForm.asset_type);
   }, [editingSceneId]);
 
   async function handleAssetSubmit() {
@@ -190,6 +211,13 @@ export default function SceneAssetSection({
     }
   }
 
+  function applyCreditSource(sourceNote) {
+    setAssetForm((prev) => ({
+      ...prev,
+      source_note: sourceNote,
+    }));
+  }
+
   async function handleAssetUpdate(updated) {
     if (!editingAsset) return;
 
@@ -227,9 +255,11 @@ export default function SceneAssetSection({
 
           <select
             value={assetForm.asset_type}
-            onChange={(e) =>
-              setAssetForm((prev) => ({ ...prev, asset_type: e.target.value }))
-            }
+            onChange={async (e) => {
+              const nextType = e.target.value;
+              setAssetForm((prev) => ({ ...prev, asset_type: nextType }));
+              await loadCreditSourceOptions(nextType);
+            }}
           >
             <option value="material">素材</option>
             <option value="audio">音声</option>
@@ -305,6 +335,31 @@ export default function SceneAssetSection({
             }
             rows={4}
           />
+
+          <div className="asset-credit-source-panel">
+            <div className="asset-credit-source-header">
+              <strong>過去に使ったクレジット候補</strong>
+            </div>
+
+            {creditSourceOptions.length === 0 ? (
+              <p className="asset-credit-source-empty">
+                この種別ではまだ候補がありません
+              </p>
+            ) : (
+              <div className="asset-credit-source-list">
+                {creditSourceOptions.map((option) => (
+                  <button
+                    key={`${option.asset_id}-${option.asset_type}`}
+                    type="button"
+                    className="asset-credit-source-chip"
+                    onClick={() => applyCreditSource(option.source_note)}
+                  >
+                    {option.asset_title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <textarea
             placeholder="メモ"
