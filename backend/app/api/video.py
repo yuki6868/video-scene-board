@@ -57,36 +57,63 @@ def create_video(video: VideoCreate, db: Session = Depends(get_db)):
 
 @router.get("/{video_id}/credits")
 def get_video_credits(video_id: int, db: Session = Depends(get_db)):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if video is None:
-        raise HTTPException(status_code=404, detail="Video not found")
-
     assets = (
         db.query(Asset)
         .filter(Asset.video_id == video_id)
-        .order_by(Asset.scene_id.asc(), Asset.id.asc())
         .all()
     )
 
-    credit_lines = []
+    def map_category(asset_type: str):
+        return {
+            "bgm": "BGM",
+            "se": "効果音",
+            "audio": "音声",
+            "background": "背景",
+        }.get(asset_type, "その他")
+
+    groups = {
+        "BGM": [],
+        "効果音": [],
+        "音声": [],
+        "背景": [],
+        "その他": [],
+    }
+
     seen = set()
 
     for asset in assets:
-        note = (asset.source_note or "").strip()
-        if not note:
+        if not asset.source_note:
             continue
-        if note in seen:
-            continue
-        seen.add(note)
-        credit_lines.append(note)
 
-    text = ""
-    if credit_lines:
-        text = "【使用素材・クレジット】\n" + "\n".join(credit_lines)
+        note = asset.source_note.strip()
+
+        if not note or note in seen:
+            continue
+
+        seen.add(note)
+
+        category = map_category(asset.asset_type)
+        groups[category].append(note)
+
+    # テキスト生成
+    lines = ["【使用素材・クレジット】"]
+
+    for category, items in groups.items():
+        if not items:
+            continue
+
+        lines.append("")
+        lines.append(f"【{category}】")
+
+        for item in items:
+            lines.append(item)
+
+    text = "\n".join(lines)
 
     return {
         "video_id": video_id,
-        "credits": credit_lines,
+        "groups": groups,
+        "credits": list(seen),
         "text": text,
     }
 

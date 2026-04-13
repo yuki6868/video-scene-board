@@ -852,7 +852,11 @@ function App() {
     if (!selectedVideo) return;
 
     try {
-      const data = await fetchVideoCredits(selectedVideo.id);
+      const res = await fetch(
+        `http://127.0.0.1:8000/videos/${selectedVideo.id}/credits`
+      );
+
+      const data = await res.json();
 
       if (!data.text) {
         alert("クレジット対象の素材がまだありません");
@@ -863,7 +867,7 @@ function App() {
       alert("クレジットをコピーしました");
     } catch (err) {
       console.error(err);
-      alert("クレジット生成に失敗しました");
+      alert("クレジットコピーに失敗しました");
     }
   }
 
@@ -2149,7 +2153,7 @@ function App() {
                           className="submit-button"
                           onClick={handleCopyCredits}
                         >
-                          クレジット生成
+                          クレジットをコピー
                         </button>
                       </div>
 
