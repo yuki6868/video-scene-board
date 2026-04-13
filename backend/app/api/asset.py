@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi import UploadFile, File, Form
 from sqlalchemy.orm import Session
 import os
@@ -93,6 +93,41 @@ def list_credit_sources(
 
     return results
 
+@router.delete("/credit-sources")
+def delete_credit_source(
+    video_id: int = Query(...),
+    source_note: str = Query(...),
+    asset_type: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    normalized_source_note = source_note.strip()
+    if not normalized_source_note:
+        raise HTTPException(status_code=400, detail="source_note is required")
+
+    query = db.query(Asset).filter(
+        Asset.video_id == video_id,
+        Asset.source_note == normalized_source_note,
+    )
+
+    if asset_type:
+        query = query.filter(Asset.asset_type == asset_type)
+
+    assets = query.all()
+
+    if not assets:
+        raise HTTPException(status_code=404, detail="Credit source not found")
+
+    updated_count = 0
+    for asset in assets:
+        asset.source_note = None
+        updated_count += 1
+
+    db.commit()
+
+    return {
+        "message": "Credit source deleted",
+        "updated_count": updated_count,
+    }
 
 @router.get("/{asset_id}", response_model=AssetResponse)
 def get_asset(asset_id: int, db: Session = Depends(get_db)):

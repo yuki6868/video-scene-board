@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   fetchAssets,
-  updateAsset,
   deleteAsset,
   generateTaskFromAsset,
+  updateAsset,
   fetchCreditSources,
+  deleteCreditSource,
 } from "../../api/assetApi";
 import AssetEditModal from "../modals/AssetEditModal";
 
@@ -218,6 +219,31 @@ export default function SceneAssetSection({
     }));
   }
 
+  async function handleDeleteCreditSource(sourceNote) {
+    if (!videoId) return;
+
+    const ok = window.confirm("この過去クレジット候補を削除しますか？");
+    if (!ok) return;
+
+    try {
+      await deleteCreditSource({
+        videoId,
+        assetType: assetForm.asset_type,
+        sourceNote,
+      });
+
+      setAssetForm((prev) => ({
+        ...prev,
+        source_note: prev.source_note === sourceNote ? "" : prev.source_note,
+      }));
+
+      await loadCreditSourceOptions(assetForm.asset_type);
+    } catch (err) {
+      console.error(err);
+      alert("クレジット候補の削除に失敗しました");
+    }
+  }
+
   async function handleAssetUpdate(updated) {
     if (!editingAsset) return;
 
@@ -348,14 +374,25 @@ export default function SceneAssetSection({
             ) : (
               <div className="asset-credit-source-list">
                 {creditSourceOptions.map((option) => (
-                  <button
+                  <div
                     key={`${option.asset_id}-${option.asset_type}`}
-                    type="button"
-                    className="asset-credit-source-chip"
-                    onClick={() => applyCreditSource(option.source_note)}
+                    className="asset-credit-source-item"
                   >
-                    {option.asset_title}
-                  </button>
+                    <button
+                      type="button"
+                      className="asset-credit-source-chip"
+                      onClick={() => applyCreditSource(option.source_note)}
+                    >
+                      {option.asset_title}
+                    </button>
+                    <button
+                      type="button"
+                      className="asset-credit-source-delete"
+                      onClick={() => handleDeleteCreditSource(option.source_note)}
+                    >
+                      削除
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

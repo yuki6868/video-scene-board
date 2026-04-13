@@ -131,3 +131,28 @@ export async function fetchCreditSources({ videoId, assetType }) {
 
   return response.json();
 }
+
+export async function deleteCreditSource({ videoId, assetType, sourceNote }) {
+  const query = new URLSearchParams();
+
+  query.append("video_id", videoId);
+
+  if (assetType) {
+    query.append("asset_type", assetType);
+  }
+
+  query.append("source_note", sourceNote);
+
+  const response = await fetch(
+    `${ASSET_API_BASE_URL}/credit-sources?${query.toString()}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("クレジット候補の削除に失敗しました");
+  }
+
+  return response.json();
+}
