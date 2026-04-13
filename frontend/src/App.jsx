@@ -184,12 +184,28 @@ function splitVideoScriptToSceneSeeds(videoForm) {
   });
 }
 
+function normalizeHashtagText(value) {
+  if (!value) return "";
+
+  const normalizedTags = value
+    .replace(/、/g, ",")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .map((tag) => tag.replace(/^#+/, "").replace(/\s+/g, ""))
+    .filter(Boolean);
+
+  const uniqueTags = Array.from(new Set(normalizedTags));
+
+  return uniqueTags.map((tag) => `#${tag}`).join(", ");
+}
+
 function buildVideoPayload(videoForm) {
   return {
     title: videoForm.title.trim(),
     thumbnail_url: videoForm.thumbnail_url?.trim() || "",
     description: videoForm.description?.trim() || "",
-    tags: videoForm.tags?.trim() || "",
+    tags: normalizeHashtagText(videoForm.tags),
     video_path: videoForm.video_path?.trim() || "",
     youtube_url: videoForm.youtube_url?.trim() || "",
     youtube_id: videoForm.youtube_id?.trim() || "",
@@ -1602,9 +1618,34 @@ function App() {
 
   const handleVideoChange = (e) => {
     const { name, value } = e.target;
+
     setVideoForm((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleTagBlur = (e) => {
+    const normalized = normalizeHashtagText(e.target.value);
+
+    setVideoForm((prev) => ({
+      ...prev,
+      tags: normalized,
+    }));
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.nativeEvent?.isComposing) return;
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+
+    const currentValue = e.currentTarget.value || "";
+    const normalized = normalizeHashtagText(currentValue);
+
+    setVideoForm((prev) => ({
+      ...prev,
+      tags: normalized ? `${normalized}, ` : "",
     }));
   };
 
@@ -2805,6 +2846,8 @@ function App() {
         form={videoForm}
         onChange={handleVideoChange}
         onThumbnailFileChange={handleThumbnailFileChange}
+        onTagBlur={handleTagBlur}
+        onTagKeyDown={handleTagKeyDown}
         editingVideoId={editingVideoId}
         splitVideoScriptToSceneSeeds={splitVideoScriptToSceneSeeds}
         inferSectionTypeFromTitle={inferSectionTypeFromTitle}

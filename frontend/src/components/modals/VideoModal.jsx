@@ -9,6 +9,8 @@ function VideoModal({
   onChange,
   onThumbnailFileChange,
   editingVideoId,
+  onTagBlur,
+  onTagKeyDown,
   splitVideoScriptToSceneSeeds,
   inferSectionTypeFromTitle,
 }) {
@@ -122,16 +124,15 @@ function VideoModal({
               </div>
             )}
 
-            <div className="form-group">
-              <label>タグ</label>
-              <input
-                type="text"
-                name="tags"
-                value={form.tags}
-                onChange={onChange}
-                placeholder="例: 法律, 雑学, エンタメ"
-              />
-            </div>
+            <input
+              type="text"
+              name="tags"
+              value={form.tags}
+              onChange={onChange}
+              onBlur={onTagBlur}
+              onKeyDown={onTagKeyDown}
+              placeholder="例: 法律, 雑学, エンタメ"
+            />
 
             <div className="form-group video-modal-full">
               <label>説明文</label>
