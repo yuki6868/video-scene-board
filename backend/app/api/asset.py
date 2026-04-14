@@ -5,6 +5,7 @@ from fastapi import UploadFile, File, Form
 from sqlalchemy.orm import Session
 import os
 import uuid
+import re
 
 from app.dependencies.db import get_db
 from app.models.asset import Asset
@@ -20,20 +21,50 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 
 BASE_UPLOAD_DIR = "uploads"
 
+def is_placeholder_name(text: str) -> bool:
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+
+    return bool(
+        re.match(
+            r"^シーン\d+\s*:\s*(背景素材|メイン素材|音声素材|BGM素材|効果音素材)$",
+            normalized,
+        )
+    )
+
+
+def should_include_in_credit(asset: Asset) -> bool:
+    if asset is None:
+        return False
+
+    if asset.is_credit_target is False:
+        return False
+
+    title = (asset.title or "").strip()
+    source_note = (asset.source_note or "").strip()
+
+    if is_placeholder_name(title) and not source_note:
+        return False
+
+    return True
+
+
 def is_placeholder_auto_asset(asset: Asset) -> bool:
     title = (asset.title or "").strip()
     source_note = (asset.source_note or "").strip()
     path_or_url = (asset.path_or_url or "").strip()
 
-    if asset.is_auto_generated and not source_note and not path_or_url:
+    if source_note:
+        return False
+
+    if path_or_url:
+        return False
+
+    if is_placeholder_name(title):
         return True
 
-    if (
-        title.startswith("シーン")
-        and "素材" in title
-        and not source_note
-        and not path_or_url
-    ):
+    if asset.is_auto_generated:
         return True
 
     return False
@@ -91,10 +122,7 @@ def list_credit_sources(
     seen = set()
 
     for asset in assets:
-        if asset.is_credit_target is False:
-            continue
-
-        if is_placeholder_auto_asset(asset):
+        if not should_include_in_credit(asset):
             continue
 
         source_note = (asset.source_note or "").strip()

@@ -1,13 +1,12 @@
 from pathlib import Path
+import os
+import re
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-
-import os
-import uuid
-
 from fastapi import UploadFile, File, Form
+from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.models.scene import Scene
@@ -26,31 +25,21 @@ from app.services.davinci_export import (
     export_davinci_manifest,
     EXPORT_BASE_DIR,
 )
-from app.models.asset import Asset
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
-def is_placeholder_auto_asset(asset: Asset) -> bool:
-    title = (asset.title or "").strip()
-    source_note = (asset.source_note or "").strip()
-    path_or_url = (asset.path_or_url or "").strip()
 
-    # 明示的に自動生成扱いで、まだ中身が入っていないものは除外
-    if asset.is_auto_generated and not source_note and not path_or_url:
-        return True
+def is_placeholder_name(text: str) -> bool:
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
 
-    # 既存DB救済:
-    # 昔のデータでは is_auto_generated が立っていない可能性があるので、
-    # 自動生成タイトルっぽくて source/path が空なら除外
-    if (
-        title.startswith("シーン")
-        and "素材" in title
-        and not source_note
-        and not path_or_url
-    ):
-        return True
-
-    return False
+    return bool(
+        re.match(
+            r"^シーン\d+\s*:\s*(背景素材|メイン素材|音声素材|BGM素材|効果音素材)$",
+            normalized,
+        )
+    )
 
 
 def should_include_in_credit(asset: Asset) -> bool:
@@ -60,7 +49,11 @@ def should_include_in_credit(asset: Asset) -> bool:
     if asset.is_credit_target is False:
         return False
 
-    if is_placeholder_auto_asset(asset):
+    title = (asset.title or "").strip()
+    source_note = (asset.source_note or "").strip()
+
+    # タイトルがプレースホルダで、クレジット元がないものは除外
+    if is_placeholder_name(title) and not source_note:
         return False
 
     return True
@@ -94,6 +87,7 @@ def create_video(video: VideoCreate, db: Session = Depends(get_db)):
     db.refresh(new_video)
     return new_video
 
+
 @router.get("/{video_id}/credits")
 def get_video_credits(video_id: int, db: Session = Depends(get_db)):
     assets = (
@@ -107,6 +101,7 @@ def get_video_credits(video_id: int, db: Session = Depends(get_db)):
             "bgm": "BGM",
             "se": "効果音",
             "audio": "音声",
+            "voice": "音声",
             "background": "背景",
         }.get(asset_type, "その他")
 
@@ -156,6 +151,7 @@ def get_video_credits(video_id: int, db: Session = Depends(get_db)):
         "credits": list(seen),
         "text": text,
     }
+
 
 @router.get("/{video_id}/description-template")
 def get_video_description_template(video_id: int, db: Session = Depends(get_db)):
