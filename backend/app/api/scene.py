@@ -26,7 +26,6 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
     if video is None:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    # シーン作成
     new_scene = Scene(
         **scene.dict(),
         video_id=video_id
@@ -41,12 +40,9 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
         scene_title=new_scene.title,
     )
 
-    created_parent_tasks = {}
-
     created_tasks = {}
     sibling_sort_counters = {}
 
-    # 1. 親から順に作る
     for task_data in initial_tasks:
         parent_key = task_data["parent_key"]
 
@@ -85,7 +81,6 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
         db.add(new_task)
         db.flush()
         created_tasks[task_data["key"]] = new_task
-
 
     initial_assets = get_scene_initial_assets(
         scene_id=new_scene.id,
@@ -198,6 +193,8 @@ def update_scene(scene_id: int, scene_data: SceneUpdate, db: Session = Depends(g
     scene.telop = scene_data.telop
     scene.direction = scene_data.direction
     scene.edit_note = scene_data.edit_note
+    scene.voice_text = scene_data.voice_text
+    scene.subtitle_text = scene_data.subtitle_text
 
     db.commit()
     db.refresh(scene)
@@ -237,6 +234,8 @@ def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
         telop=source_scene.telop,
         direction=source_scene.direction,
         edit_note=source_scene.edit_note,
+        voice_text=source_scene.voice_text,
+        subtitle_text=source_scene.subtitle_text,
     )
 
     db.add(duplicated_scene)
@@ -264,6 +263,8 @@ def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
             source_note=asset.source_note,
             search_keyword=asset.search_keyword,
             memo=asset.memo,
+            is_credit_target=asset.is_credit_target,
+            is_auto_generated=asset.is_auto_generated,
         )
         db.add(duplicated_asset)
         db.flush()
@@ -280,6 +281,8 @@ def duplicate_scene(scene_id: int, db: Session = Depends(get_db)):
         duplicated_voice_asset = VoiceAsset(
             scene_id=duplicated_scene.id,
             text=voice_asset.text,
+            voice_text=voice_asset.voice_text,
+            subtitle_text=voice_asset.subtitle_text,
             style_id=voice_asset.style_id,
             character_name=voice_asset.character_name,
             style_name=voice_asset.style_name,

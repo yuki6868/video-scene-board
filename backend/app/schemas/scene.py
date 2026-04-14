@@ -20,6 +20,8 @@ class SceneCreate(BaseModel):
     telop: str | None = None
     direction: str | None = None
     edit_note: str | None = None
+    voice_text: str | None = None
+    subtitle_text: str | None = None
 
 
 class SceneUpdate(BaseModel):
@@ -40,6 +42,8 @@ class SceneUpdate(BaseModel):
     telop: str | None = None
     direction: str | None = None
     edit_note: str | None = None
+    voice_text: str | None = None
+    subtitle_text: str | None = None
 
 
 class SceneReorderItem(BaseModel):
@@ -67,6 +71,8 @@ class SceneResponse(BaseModel):
     telop: str | None
     direction: str | None
     edit_note: str | None
+    voice_text: str | None
+    subtitle_text: str | None
 
     created_at: datetime
     updated_at: datetime

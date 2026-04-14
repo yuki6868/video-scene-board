@@ -1,10 +1,12 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class VoiceAssetGenerateRequest(BaseModel):
     scene_id: int
-    text: str
+    text: str | None = None
+    voice_text: str | None = None
+    subtitle_text: str | None = None
     style_id: int
     speed: float = 1.0
     pitch: float = 0.0
@@ -16,6 +18,8 @@ class VoiceAssetResponse(BaseModel):
     id: int
     scene_id: int
     text: str
+    voice_text: str | None = None
+    subtitle_text: str | None = None
     style_id: int
     character_name: str
     style_name: str
@@ -28,5 +32,4 @@ class VoiceAssetResponse(BaseModel):
     is_selected: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

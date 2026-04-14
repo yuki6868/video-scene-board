@@ -1,15 +1,14 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
-from app.models.voice_asset import VoiceAsset
 from app.models.scene import Scene
+from app.models.voice_asset import VoiceAsset
 from app.schemas.voice_asset import VoiceAssetGenerateRequest, VoiceAssetResponse
-
-from pathlib import Path
-
-from app.services.voice_service import generate_voice_file
 from app.services.subtitle_service import generate_subtitle_png
+from app.services.voice_service import generate_voice_file
 
 
 router = APIRouter(prefix="/voice-assets", tags=["voice-assets"])
@@ -22,7 +21,6 @@ OUTPUT_BASE_DIR = Path("outputs")
 # =========================
 @router.post("/generate", response_model=VoiceAssetResponse)
 def generate_voice_asset(payload: VoiceAssetGenerateRequest, db: Session = Depends(get_db)):
-
     scene = db.query(Scene).filter(Scene.id == payload.scene_id).first()
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
@@ -73,7 +71,6 @@ def generate_voice_asset(payload: VoiceAssetGenerateRequest, db: Session = Depen
 # =========================
 @router.get("/scene/{scene_id}", response_model=list[VoiceAssetResponse])
 def get_voice_assets(scene_id: int, db: Session = Depends(get_db)):
-
     return (
         db.query(VoiceAsset)
         .filter(VoiceAsset.scene_id == scene_id)
@@ -87,7 +84,6 @@ def get_voice_assets(scene_id: int, db: Session = Depends(get_db)):
 # =========================
 @router.post("/{voice_asset_id}/select")
 def select_voice_asset(voice_asset_id: int, db: Session = Depends(get_db)):
-
     target = db.query(VoiceAsset).filter(VoiceAsset.id == voice_asset_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="VoiceAsset not found")

@@ -39,6 +39,8 @@ class Scene(Base):
         back_populates="scene",
         cascade="all, delete-orphan"
     )
+    voice_text = Column(Text, nullable=True)
+    subtitle_text = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

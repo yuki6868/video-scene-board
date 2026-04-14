@@ -87,13 +87,24 @@ export default function SceneModal({
 
                 <div className="voice-form-grid">
                 <label className="voice-form-field voice-form-field-full">
-                    <span>セリフ</span>
+                    <span>読み上げ用テキスト</span>
                     <textarea
-                    name="text"
-                    value={voiceForm.text}
+                    name="voice_text"
+                    value={voiceForm.voice_text}
                     onChange={onVoiceFormChange}
                     rows={4}
                     placeholder="読み上げるセリフを入力"
+                    />
+                </label>
+
+                <label className="voice-form-field voice-form-field-full">
+                    <span>字幕用テキスト</span>
+                    <textarea
+                    name="subtitle_text"
+                    value={voiceForm.subtitle_text}
+                    onChange={onVoiceFormChange}
+                    rows={4}
+                    placeholder="表示する字幕を入力"
                     />
                 </label>
 
@@ -195,7 +206,10 @@ export default function SceneModal({
                             )}
                         </div>
 
-                        <p className="voice-history-text">{asset.text}</p>
+                        <div className="voice-history-text">
+                          <p><strong>読み上げ:</strong> {asset.voice_text || asset.text}</p>
+                          <p><strong>字幕:</strong> {asset.subtitle_text || asset.text}</p>
+                        </div>
 
                         {asset.audio_path && (
                             <audio

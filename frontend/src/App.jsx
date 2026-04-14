@@ -69,6 +69,8 @@ const initialSceneForm = {
   telop: "",
   direction: "",
   edit_note: "",
+  voice_text: "",
+  subtitle_text: "",
 };
 
 const initialVideoForm = {
@@ -181,6 +183,8 @@ function splitVideoScriptToSceneSeeds(videoForm) {
       telop: "",
       direction: "",
       edit_note: "",
+      voice_text: script || "",
+      subtitle_text: script || "",
     };
   });
 }
@@ -799,7 +803,8 @@ function App() {
   const [voiceError, setVoiceError] = useState("");
 
   const [voiceForm, setVoiceForm] = useState({
-    text: "",
+    voice_text: "",
+    subtitle_text: "",
     style_id: 3,
     speed: 1.0,
     pitch: 0.0,
@@ -1019,6 +1024,8 @@ function App() {
     telop: form.telop,
     direction: form.direction,
     edit_note: form.edit_note,
+    voice_text: form.voice_text,
+    subtitle_text: form.subtitle_text,
   });
 
   // 未保存変更があるか判定
@@ -1042,7 +1049,9 @@ function App() {
       payload.se_path !== (scene.se_path || "") ||
       payload.telop !== (scene.telop || "") ||
       payload.direction !== (scene.direction || "") ||
-      payload.edit_note !== (scene.edit_note || "")
+      payload.edit_note !== (scene.edit_note || "") ||
+      payload.voice_text !== (scene.voice_text || "") ||
+      payload.subtitle_text !== (scene.subtitle_text || "")
     );
   };
 
@@ -1244,7 +1253,7 @@ function App() {
     setVoiceForm((prev) => ({
       ...prev,
       [name]:
-        name === "text"
+        name === "voice_text" || name === "subtitle_text"
           ? value
           : Number(value),
     }));
@@ -1253,14 +1262,28 @@ function App() {
   async function handleGenerateVoice() {
     if (!selectedScene) return;
 
-    const textToUse =
-      voiceForm.text?.trim() ||
+    const voiceTextToUse =
+      voiceForm.voice_text?.trim() ||
+      sceneForm.voice_text?.trim() ||
+      selectedScene.voice_text ||
       selectedScene.script ||
-      selectedScene.telop ||
       "";
 
-    if (!textToUse) {
-      alert("セリフがありません");
+    const subtitleTextToUse =
+      voiceForm.subtitle_text?.trim() ||
+      sceneForm.subtitle_text?.trim() ||
+      selectedScene.subtitle_text ||
+      selectedScene.telop ||
+      selectedScene.script ||
+      "";
+
+    if (!voiceTextToUse) {
+      alert("読み上げ用テキストがありません");
+      return;
+    }
+
+    if (!subtitleTextToUse) {
+      alert("字幕用テキストがありません");
       return;
     }
 
@@ -1270,7 +1293,9 @@ function App() {
 
       await generateVoiceAsset({
         scene_id: selectedScene.id,
-        text: textToUse,
+        text: voiceTextToUse,
+        voice_text: voiceTextToUse,
+        subtitle_text: subtitleTextToUse,
         style_id: Number(voiceForm.style_id),
         speed: Number(voiceForm.speed),
         pitch: Number(voiceForm.pitch),
@@ -1282,7 +1307,8 @@ function App() {
 
       setVoiceForm((prev) => ({
         ...prev,
-        text: textToUse,
+        voice_text: voiceTextToUse,
+        subtitle_text: subtitleTextToUse,
       }));
     } catch (error) {
       console.error(error);
@@ -1311,6 +1337,12 @@ function App() {
           script: matchedScene.script || "",
           materials: matchedScene.materials || "",
           duration_seconds: matchedScene.duration_seconds ?? "",
+          voice_text: matchedScene.voice_text || matchedScene.script || "",
+          subtitle_text:
+            matchedScene.subtitle_text ||
+            matchedScene.telop ||
+            matchedScene.script ||
+            "",
         });
       }
     }
@@ -1341,6 +1373,12 @@ function App() {
           script: updatedScene.script || "",
           materials: updatedScene.materials || "",
           duration_seconds: updatedScene.duration_seconds ?? "",
+          voice_text: updatedScene.voice_text || updatedScene.script || "",
+          subtitle_text:
+            updatedScene.subtitle_text ||
+            updatedScene.telop ||
+            updatedScene.script ||
+            "",
         }));
       }
     } catch (error) {
@@ -1400,7 +1438,15 @@ function App() {
 
     setVoiceForm((prev) => ({
       ...prev,
-      text: selectedScene.script || selectedScene.telop || "",
+      voice_text:
+        selectedScene.voice_text ||
+        selectedScene.script ||
+        "",
+      subtitle_text:
+        selectedScene.subtitle_text ||
+        selectedScene.telop ||
+        selectedScene.script ||
+        "",
     }));
 
     loadVoiceAssets(selectedScene.id);
@@ -1639,6 +1685,8 @@ function App() {
       script: scene.script || "",
       materials: scene.materials || "",
       duration_seconds: scene.duration_seconds ?? "",
+      voice_text: scene.voice_text || scene.script || "",
+      subtitle_text: scene.subtitle_text || scene.telop || scene.script || "",
     });
 
     setEditingSceneId(scene.id);
@@ -1834,6 +1882,12 @@ function App() {
             telop: matchedScene.telop || "",
             direction: matchedScene.direction || "",
             edit_note: matchedScene.edit_note || "",
+            voice_text: matchedScene.voice_text || matchedScene.script || "",
+            subtitle_text:
+              matchedScene.subtitle_text ||
+              matchedScene.telop ||
+              matchedScene.script ||
+              "",
           });
         }
       }

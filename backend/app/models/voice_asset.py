@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -25,6 +25,9 @@ class VoiceAsset(Base):
     subtitle_png_path = Column(String, nullable=True)
 
     is_selected = Column(Boolean, nullable=False, default=False)
+
+    voice_text = Column(Text, nullable=True)
+    subtitle_text = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
