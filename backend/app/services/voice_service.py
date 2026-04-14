@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+from uuid import uuid4
 
 from voicevox_core.blocking import (
     Onnxruntime,
@@ -32,6 +33,13 @@ SPEAKER_STYLES = [
 
 STYLE_ID_MAP = {item["style_id"]: item for item in SPEAKER_STYLES}
 
+def build_voice_filename(chara, style, text, speed, pitch, intonation, volume):
+    safe_text = text[:10].replace(" ", "").replace("\n", "")
+    return (
+        f"{chara[:1]}_{style}"
+        f"_sp{speed}_pi{pitch}_in{intonation}_vo{volume}"
+        f"_{uuid4().hex[:8]}.wav"
+    )
 
 def get_speaker_info(style_id: int) -> dict:
     speaker_info = STYLE_ID_MAP.get(style_id)
@@ -95,7 +103,15 @@ def generate_voice_file(
     voice_dir.mkdir(parents=True, exist_ok=True)
 
     safe_text = sanitize_filename(text)
-    filename = f"{chara[:1]}_{style}_{safe_text}.wav"
+    filename = build_voice_filename(
+        chara,
+        style,
+        text,
+        speed,
+        pitch,
+        intonation,
+        volume
+    )
     output_path = voice_dir / filename
 
     # 音声生成
