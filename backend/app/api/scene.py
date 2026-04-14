@@ -101,6 +101,7 @@ def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db
                 asset_type=asset_data["asset_type"],
                 title=asset_data["name"],
                 status=asset_data["status"],
+                is_auto_generated=True,
             )
             db.add(new_asset)
 

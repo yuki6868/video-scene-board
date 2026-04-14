@@ -20,6 +20,23 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 
 BASE_UPLOAD_DIR = "uploads"
 
+def is_placeholder_auto_asset(asset: Asset) -> bool:
+    title = (asset.title or "").strip()
+    source_note = (asset.source_note or "").strip()
+    path_or_url = (asset.path_or_url or "").strip()
+
+    if asset.is_auto_generated and not source_note and not path_or_url:
+        return True
+
+    if (
+        title.startswith("シーン")
+        and "素材" in title
+        and not source_note
+        and not path_or_url
+    ):
+        return True
+
+    return False
 
 def get_subdir(asset_type: str):
     if asset_type == "audio":
@@ -74,6 +91,12 @@ def list_credit_sources(
     seen = set()
 
     for asset in assets:
+        if asset.is_credit_target is False:
+            continue
+
+        if is_placeholder_auto_asset(asset):
+            continue
+
         source_note = (asset.source_note or "").strip()
         if not source_note:
             continue

@@ -30,6 +30,41 @@ from app.models.asset import Asset
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
+def is_placeholder_auto_asset(asset: Asset) -> bool:
+    title = (asset.title or "").strip()
+    source_note = (asset.source_note or "").strip()
+    path_or_url = (asset.path_or_url or "").strip()
+
+    # 明示的に自動生成扱いで、まだ中身が入っていないものは除外
+    if asset.is_auto_generated and not source_note and not path_or_url:
+        return True
+
+    # 既存DB救済:
+    # 昔のデータでは is_auto_generated が立っていない可能性があるので、
+    # 自動生成タイトルっぽくて source/path が空なら除外
+    if (
+        title.startswith("シーン")
+        and "素材" in title
+        and not source_note
+        and not path_or_url
+    ):
+        return True
+
+    return False
+
+
+def should_include_in_credit(asset: Asset) -> bool:
+    if asset is None:
+        return False
+
+    if asset.is_credit_target is False:
+        return False
+
+    if is_placeholder_auto_asset(asset):
+        return False
+
+    return True
+
 
 @router.post("/", response_model=VideoResponse)
 def create_video(video: VideoCreate, db: Session = Depends(get_db)):
@@ -86,11 +121,14 @@ def get_video_credits(video_id: int, db: Session = Depends(get_db)):
     seen = set()
 
     for asset in assets:
+        if not should_include_in_credit(asset):
+            continue
+
         credit_text = (asset.source_note or "").strip() or (asset.title or "").strip()
         if not credit_text:
             continue
 
-        if not credit_text or credit_text in seen:
+        if credit_text in seen:
             continue
 
         seen.add(credit_text)
@@ -98,7 +136,6 @@ def get_video_credits(video_id: int, db: Session = Depends(get_db)):
         category = map_category(asset.asset_type)
         groups[category].append(credit_text)
 
-    # テキスト生成
     lines = ["【使用素材・クレジット】"]
 
     for category, items in groups.items():
@@ -152,10 +189,12 @@ def get_video_description_template(video_id: int, db: Session = Depends(get_db))
     seen_by_category = {key: set() for key in groups.keys()}
 
     for asset in assets:
+        if not should_include_in_credit(asset):
+            continue
+
         source_note = (asset.source_note or "").strip()
         title = (asset.title or "").strip()
 
-        # source_note があれば優先、なければ title を使う
         credit_text = source_note or title
         if not credit_text:
             continue
