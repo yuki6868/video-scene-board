@@ -139,6 +139,26 @@ def migrate_task_columns():
 
         conn.commit()
 
+def migrate_asset_columns():
+    with engine.connect() as conn:
+        statements = [
+            "ALTER TABLE assets ADD COLUMN is_credit_target BOOLEAN DEFAULT 1 NOT NULL",
+            "ALTER TABLE assets ADD COLUMN is_auto_generated BOOLEAN DEFAULT 0 NOT NULL",
+        ]
+
+        for stmt in statements:
+            try:
+                conn.execute(text(stmt))
+                print(f"OK: {stmt}")
+            except Exception as e:
+                message = str(e)
+                if "duplicate column name" in message:
+                    print(f"SKIP: {stmt}")
+                else:
+                    print(f"ERROR: {stmt} -> {e}")
+
+        conn.commit()
+
 def migrate_voice_assets_table(engine):
     with engine.connect() as conn:
         conn.execute(text("""
@@ -156,10 +176,29 @@ def migrate_voice_assets_table(engine):
                 audio_path TEXT,
                 subtitle_png_path TEXT,
                 is_selected BOOLEAN NOT NULL DEFAULT 0,
+                voice_text TEXT,
+                subtitle_text TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(scene_id) REFERENCES scenes(id) ON DELETE CASCADE
             )
         """))
+
+        statements = [
+            "ALTER TABLE voice_assets ADD COLUMN voice_text TEXT",
+            "ALTER TABLE voice_assets ADD COLUMN subtitle_text TEXT",
+        ]
+
+        for stmt in statements:
+            try:
+                conn.execute(text(stmt))
+                print(f"OK: {stmt}")
+            except Exception as e:
+                message = str(e)
+                if "duplicate column name" in message:
+                    print(f"SKIP: {stmt}")
+                else:
+                    print(f"ERROR: {stmt} -> {e}")
+
         conn.commit()
 
 def remove_duplicate_tasks(engine):
@@ -306,6 +345,7 @@ remove_duplicate_tasks(engine)
 migrate_video_columns(engine)
 migrate_scene_columns()
 migrate_task_columns()
+migrate_asset_columns()
 backfill_task_asset_links()
 
 @asynccontextmanager
