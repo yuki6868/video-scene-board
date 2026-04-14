@@ -19,8 +19,9 @@ import json
 import re
 
 
-EXPORT_BASE_DIR = Path("exports")
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = BACKEND_ROOT.parent
+EXPORT_BASE_DIR = PROJECT_ROOT.parent / "exports"
 
 
 def _sanitize_export_name(export_name: str | None) -> str | None:
@@ -380,13 +381,12 @@ def _to_file_uri(path_str: str, base_dir: Path) -> str:
     if path.is_absolute():
         return path.resolve().as_uri()
 
-    # "exports/..." で始まる場合は backend ルート基準で解決
-    if path.parts and path.parts[0] == EXPORT_BASE_DIR.name:
-        return (BACKEND_ROOT / path).resolve().as_uri()
+    # "exports/..." で始まる場合は exports の親基準で解決
+    if path.parts and path.parts[0] == "exports":
+        return (EXPORT_BASE_DIR.parent / path).resolve().as_uri()
 
-    # それ以外は export_dir 基準で解決
     if not base_dir.is_absolute():
-        base_dir = (BACKEND_ROOT / base_dir).resolve()
+        base_dir = base_dir.resolve()
 
     return (base_dir / path).resolve().as_uri()
 

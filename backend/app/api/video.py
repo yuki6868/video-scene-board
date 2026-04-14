@@ -24,6 +24,7 @@ from app.schemas.video import (
 from app.services.davinci_export import (
     create_davinci_export_zip,
     export_davinci_manifest,
+    EXPORT_BASE_DIR,
 )
 from app.models.asset import Asset
 
@@ -466,7 +467,7 @@ def download_video_davinci_export(video_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Video not found")
 
     export_candidates = sorted(
-        Path("exports").glob(f"video_{video_id}_*"),
+        EXPORT_BASE_DIR.glob(f"video_{video_id}_*"),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )

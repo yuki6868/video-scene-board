@@ -102,6 +102,8 @@ def migrate_scene_columns():
             "ALTER TABLE scenes ADD COLUMN telop TEXT",
             "ALTER TABLE scenes ADD COLUMN direction TEXT",
             "ALTER TABLE scenes ADD COLUMN edit_note TEXT",
+            "ALTER TABLE scenes ADD COLUMN voice_text TEXT",
+            "ALTER TABLE scenes ADD COLUMN subtitle_text TEXT",
         ]
 
         for stmt in statements:
