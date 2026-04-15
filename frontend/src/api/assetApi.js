@@ -19,6 +19,14 @@ export async function fetchAssets(params = {}) {
     query.append("status", params.status);
   }
 
+  if (params.includeShared) {
+    query.append("include_shared", "true");
+  }
+
+  if (params.globalOnly) {
+    query.append("global_only", "true");
+  }
+
   const url = query.toString()
     ? `${ASSET_API_BASE_URL}/?${query.toString()}`
     : `${ASSET_API_BASE_URL}/`;
@@ -66,6 +74,18 @@ export async function updateAsset(assetId, asset) {
       if (value) {
         formData.append(key, value);
       }
+      return;
+    }
+
+    if (key === "scene_id") {
+      if (value !== undefined && value !== null && value !== "") {
+        formData.append(key, value);
+      }
+      return;
+    }
+
+    if (typeof value === "boolean") {
+      formData.append(key, value ? "true" : "false");
       return;
     }
 

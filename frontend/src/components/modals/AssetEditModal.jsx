@@ -12,18 +12,20 @@ export default function AssetEditModal({
 
   useEffect(() => {
     if (asset) {
-        setForm({
-          title: asset.title || "",
-          asset_type: asset.asset_type || "material",
-          status: asset.status || "idea",
-          location_type: asset.location_type || "none",
-          path_or_url: asset.path_or_url || "",
-          source_note: asset.source_note || "",
-          memo: asset.memo || "",
-          file: null,
-          video_id: asset.video_id,
-          scene_id: asset.scene_id,
-        });
+      setForm({
+        title: asset.title || "",
+        asset_type: asset.asset_type || "material",
+        status: asset.status || "idea",
+        location_type: asset.location_type || "none",
+        path_or_url: asset.path_or_url || "",
+        source_note: asset.source_note || "",
+        memo: asset.memo || "",
+        file: null,
+        video_id: asset.video_id,
+        scene_id: asset.scene_id,
+        binding_scope: asset.scene_id == null ? "global" : "scene",
+        clear_scene_binding: asset.scene_id == null,
+      });
         loadCreditSourceOptions(asset.video_id, asset.asset_type || "material");
       }
     }, [asset]);
@@ -95,13 +97,30 @@ export default function AssetEditModal({
         loadCreditSourceOptions(next.video_id, value);
       }
 
+      if (name === "binding_scope") {
+        if (value === "global") {
+          next.scene_id = null;
+          next.clear_scene_binding = true;
+        } else {
+          next.scene_id = asset?.scene_id ?? prev.scene_id;
+          next.clear_scene_binding = false;
+        }
+      }
+
       return next;
     });
   }
 
   async function handleSubmit(e) {
     if (e) e.preventDefault();
-    await onSave(form);
+
+    const payload = {
+      ...form,
+      scene_id: form.binding_scope === "scene" ? form.scene_id : null,
+      clear_scene_binding: form.binding_scope === "global",
+    };
+
+    await onSave(payload);
   }
 
   return (
@@ -127,6 +146,19 @@ export default function AssetEditModal({
                 placeholder="タイトル"
                 required
               />
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="asset-binding-scope">紐づけ先</label>
+              <select
+                id="asset-binding-scope"
+                name="binding_scope"
+                value={form.binding_scope}
+                onChange={handleChange}
+              >
+                <option value="scene">このシーン専用</option>
+                <option value="global">動画共通</option>
+              </select>
             </div>
 
             <div className="form-field">
