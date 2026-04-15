@@ -34,6 +34,7 @@ const initialAssetForm = {
   source_note: "",
   memo: "",
   file: null,
+  binding_scope: "scene",
 };
 
 function getAssetStatusLabel(status) {
@@ -76,7 +77,8 @@ export default function SceneAssetSection({
   loadTasks,
   onAssetUpdated,
 }) {
-  const [assets, setAssets] = useState([]);
+  const [sceneAssets, setSceneAssets] = useState([]);
+  const [sharedAssets, setSharedAssets] = useState([]);
   const [assetForm, setAssetForm] = useState(initialAssetForm);
   const [editingAssetId, setEditingAssetId] = useState(null);
   const [editingAsset, setEditingAsset] = useState(null);
@@ -84,17 +86,34 @@ export default function SceneAssetSection({
   const [creditSourceOptions, setCreditSourceOptions] = useState([]);
 
   async function loadAssets() {
-    if (!editingSceneId) {
-      setAssets([]);
+    if (!videoId) {
+      setSceneAssets([]);
+      setSharedAssets([]);
       return;
     }
 
     try {
-      const data = await fetchAssets({ sceneId: editingSceneId });
-      setAssets(data);
+      const requests = [
+        fetchAssets({ videoId, globalOnly: true }),
+      ];
+
+      if (editingSceneId) {
+        requests.unshift(fetchAssets({ sceneId: editingSceneId }));
+      }
+
+      const results = await Promise.all(requests);
+
+      if (editingSceneId) {
+        setSceneAssets(results[0] || []);
+        setSharedAssets(results[1] || []);
+      } else {
+        setSceneAssets([]);
+        setSharedAssets(results[0] || []);
+      }
     } catch (err) {
       console.error(err);
-      setAssets([]);
+      setSceneAssets([]);
+      setSharedAssets([]);
     }
   }
 
@@ -117,8 +136,9 @@ export default function SceneAssetSection({
   }
 
   useEffect(() => {
-    if (!editingSceneId) {
-      setAssets([]);
+    if (!videoId) {
+      setSceneAssets([]);
+      setSharedAssets([]);
       setEditingAssetId(null);
       setAssetForm(initialAssetForm);
       return;
@@ -126,10 +146,15 @@ export default function SceneAssetSection({
 
     loadAssets();
     loadCreditSourceOptions(initialAssetForm.asset_type);
-  }, [editingSceneId]);
+  }, [editingSceneId, videoId]);
 
   async function handleAssetSubmit() {
-    if (!editingSceneId) {
+    if (!videoId) {
+      alert("先に動画を保存してください");
+      return;
+    }
+
+    if (assetForm.binding_scope === "scene" && !editingSceneId) {
       alert("先にシーンを保存してください");
       return;
     }
@@ -142,7 +167,11 @@ export default function SceneAssetSection({
     const formData = new FormData();
 
     formData.append("video_id", videoId);
-    formData.append("scene_id", editingSceneId);
+
+    if (assetForm.binding_scope === "scene" && editingSceneId) {
+      formData.append("scene_id", editingSceneId);
+    }
+
     formData.append("title", assetForm.title);
     formData.append("asset_type", assetForm.asset_type);
     formData.append("status", assetForm.status);
@@ -262,7 +291,78 @@ export default function SceneAssetSection({
         console.error(err);
         alert("素材の更新に失敗しました");
     }
+  }
+
+    function renderAssetList(items, emptyMessage) {
+    if (items.length === 0) {
+      return <p>{emptyMessage}</p>;
     }
+
+    return (
+      <ul className="asset-list">
+        {items.map((asset) => (
+          <li key={asset.id} className="asset-item">
+            <div><strong>{asset.title}</strong></div>
+
+            <div>
+              紐づけ先: {asset.scene_id == null ? "動画共通" : "このシーン"}
+            </div>
+
+            <div className={`asset-type type-${asset.asset_type}`}>
+              種別: {getAssetTypeLabel(asset.asset_type)}
+            </div>
+
+            <div className={`asset-status status-${asset.status}`}>
+              状態: {getAssetStatusLabel(asset.status)}
+            </div>
+
+            {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
+
+            {asset.path_or_url && isImagePath(asset.path_or_url) && (
+              <div className="scene-image-preview">
+                <p className="scene-image-preview-label">素材プレビュー</p>
+                <img
+                  src={buildFileUrl(asset.path_or_url)}
+                  alt={asset.title}
+                  className="scene-preview-image"
+                />
+              </div>
+            )}
+
+            {asset.source_note && <div>クレジット: {asset.source_note}</div>}
+            {asset.memo && <div>メモ: {asset.memo}</div>}
+
+            <div className="asset-item-actions">
+              <button
+                type="button"
+                className="submit-button"
+                onClick={() => handleGenerateTaskFromAsset(asset)}
+              >
+                タスク化
+              </button>
+              <button
+                type="button"
+                className="submit-button"
+                onClick={() => {
+                  setEditingAsset(asset);
+                  setIsAssetModalOpen(true);
+                }}
+              >
+                編集
+              </button>
+              <button
+                type="button"
+                className="delete-button"
+                onClick={() => handleAssetDelete(asset.id)}
+              >
+                削除
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  } 
 
   return (
     <div className="asset-section">
@@ -278,6 +378,19 @@ export default function SceneAssetSection({
               setAssetForm((prev) => ({ ...prev, title: e.target.value }))
             }
           />
+
+          <select
+            value={assetForm.binding_scope}
+            onChange={(e) =>
+              setAssetForm((prev) => ({
+                ...prev,
+                binding_scope: e.target.value,
+              }))
+            }
+          >
+            <option value="scene">このシーン専用</option>
+            <option value="global">動画共通</option>
+          </select>
 
           <select
             value={assetForm.asset_type}
@@ -430,67 +543,18 @@ export default function SceneAssetSection({
       )}
 
       {!editingSceneId ? (
-        <p>シーン追加後に素材を紐づけられます</p>
+        <>
+          <h4>動画共通素材</h4>
+          {renderAssetList(sharedAssets, "動画共通素材はまだありません")}
+          <p>シーン保存後、このシーン専用素材も追加できます</p>
+        </>
       ) : (
         <>
-          {assets.length === 0 ? (
-            <p>素材はまだありません</p>
-          ) : (
-            <ul className="asset-list">
-              {assets.map((asset) => (
-                <li key={asset.id} className="asset-item">
-                  <div><strong>{asset.title}</strong></div>
-                  <div className={`asset-type type-${asset.asset_type}`}>
-                    種別: {getAssetTypeLabel(asset.asset_type)}
-                  </div>
-                  <div className={`asset-status status-${asset.status}`}>
-                    状態: {getAssetStatusLabel(asset.status)}
-                  </div>
-                  {asset.path_or_url && <div>パス: {asset.path_or_url}</div>}
+          <h4>このシーンの素材</h4>
+          {renderAssetList(sceneAssets, "このシーンの素材はまだありません")}
 
-                  {asset.path_or_url && isImagePath(asset.path_or_url) && (
-                    <div className="scene-image-preview">
-                      <p className="scene-image-preview-label">素材プレビュー</p>
-                      <img
-                        src={buildFileUrl(asset.path_or_url)}
-                        alt={asset.title}
-                        className="scene-preview-image"
-                      />
-                    </div>
-                  )}
-                  {asset.source_note && <div>クレジット: {asset.source_note}</div>}
-                  {asset.memo && <div>メモ: {asset.memo}</div>}
-
-                  <div className="asset-item-actions">
-                    <button
-                      type="button"
-                      className="submit-button"
-                      onClick={() => handleGenerateTaskFromAsset(asset)}
-                    >
-                      タスク化
-                    </button>
-                    <button
-                      type="button"
-                      className="submit-button"
-                      onClick={() => {
-                        setEditingAsset(asset);
-                        setIsAssetModalOpen(true);
-                      }}
-                    >
-                      編集
-                    </button>
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() => handleAssetDelete(asset.id)}
-                    >
-                      削除
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <h4 style={{ marginTop: "16px" }}>動画共通素材</h4>
+          {renderAssetList(sharedAssets, "動画共通素材はまだありません")}
         </>
       )}
 
