@@ -86,6 +86,8 @@ def list_assets(
     scene_id: Optional[int] = Query(default=None),
     asset_type: Optional[str] = Query(default=None),
     status: Optional[str] = Query(default=None),
+    include_shared: bool = Query(default=False),
+    global_only: bool = Query(default=False),
     db: Session = Depends(get_db),
 ):
     query = db.query(Asset)
@@ -93,8 +95,15 @@ def list_assets(
     if video_id is not None:
         query = query.filter(Asset.video_id == video_id)
 
-    if scene_id is not None:
-        query = query.filter(Asset.scene_id == scene_id)
+    if global_only:
+        query = query.filter(Asset.scene_id.is_(None))
+    elif scene_id is not None:
+        if include_shared:
+            query = query.filter(
+                (Asset.scene_id == scene_id) | (Asset.scene_id.is_(None))
+            )
+        else:
+            query = query.filter(Asset.scene_id == scene_id)
 
     if asset_type is not None:
         query = query.filter(Asset.asset_type == asset_type)
@@ -102,7 +111,7 @@ def list_assets(
     if status is not None:
         query = query.filter(Asset.status == status)
 
-    assets = query.order_by(Asset.id.desc()).all()
+    assets = query.order_by(Asset.scene_id.is_(None).desc(), Asset.id.desc()).all()
     return assets
 
 @router.get("/credit-sources")
@@ -202,6 +211,17 @@ def create_asset(
     file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video is None:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    if scene_id is not None:
+        scene = db.query(Scene).filter(Scene.id == scene_id).first()
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+        if scene.video_id != video_id:
+            raise HTTPException(status_code=400, detail="Scene does not belong to the specified video")
+
     path = path_or_url or None
 
     if file:
@@ -215,6 +235,7 @@ def create_asset(
         file_location = os.path.join(save_dir, filename)
         with open(file_location, "wb") as f:
             f.write(file.file.read())
+
         path = f"uploads/{subdir}/{filename}"
 
     asset = Asset(
@@ -259,19 +280,35 @@ def generate_task_from_asset(asset_id: int, db: Session = Depends(get_db)):
 
     # 素材種類ごとにタイトル / task_type / 親タスク種別を決める
     if asset.asset_type in ("audio", "voice", "音声"):
-        task_title = f"ナレーション作成: {asset.title}"
+        task_title = (
+            f"ナレーション作成: {asset.title}"
+            if asset.scene_id is not None
+            else f"共通ナレーション素材: {asset.title}"
+        )
         task_type = "音声"
         parent_task_type = "voice"
     elif asset.asset_type in ("background", "背景"):
-        task_title = f"背景配置: {asset.title}"
+        task_title = (
+            f"背景配置: {asset.title}"
+            if asset.scene_id is not None
+            else f"共通背景素材: {asset.title}"
+        )
         task_type = "背景"
         parent_task_type = "background"
     elif asset.asset_type in ("se", "SE", "効果音"):
-        task_title = f"効果音追加: {asset.title}"
+        task_title = (
+            f"効果音追加: {asset.title}"
+            if asset.scene_id is not None
+            else f"共通効果音素材: {asset.title}"
+        )
         task_type = "SE"
         parent_task_type = "asset"
     else:
-        task_title = f"素材対応: {asset.title}"
+        task_title = (
+            f"素材対応: {asset.title}"
+            if asset.scene_id is not None
+            else f"共通素材対応: {asset.title}"
+        )
         task_type = "素材"
         parent_task_type = "asset"
 
@@ -315,6 +352,7 @@ def update_asset(
     asset_id: int,
     video_id: int | None = Form(None),
     scene_id: int | None = Form(None),
+    clear_scene_binding: bool = Form(False),
     asset_type: str | None = Form(None),
     title: str | None = Form(None),
     status: str | None = Form(None),
@@ -350,6 +388,9 @@ def update_asset(
     }
 
     update_data = {k: v for k, v in update_data.items() if v is not None}
+
+    if clear_scene_binding:
+        update_data["scene_id"] = None
 
     next_video_id = update_data.get("video_id", asset.video_id)
     next_scene_id = update_data.get("scene_id", asset.scene_id)
