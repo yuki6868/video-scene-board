@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from math import ceil
 
 from sqlalchemy.orm import Session
 
@@ -105,6 +106,7 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
         scene_items.append(
             {
                 "scene_id": scene.id,
+                "scene_number": (scene.position or 0) + 1,
                 "position": scene.position,
                 "title": scene.title,
                 "section_type": scene.section_type,
@@ -113,6 +115,11 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
                 "script": scene.script,
                 "materials": scene.materials,
                 "telop": scene.telop,
+                "subtitle_text": (
+                    (selected_voice.subtitle_text if selected_voice else None)
+                    or scene.subtitle_text
+                    or scene.telop
+                ),
                 "direction": scene.direction,
                 "edit_note": scene.edit_note,
                 "character_name": scene.character_name,
@@ -130,6 +137,7 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
                         "style_id": selected_voice.style_id,
                         "style_name": selected_voice.style_name,
                         "text": selected_voice.text,
+                        "subtitle_text": selected_voice.subtitle_text,
                         "speed": selected_voice.speed,
                         "pitch": selected_voice.pitch,
                         "intonation": selected_voice.intonation,
@@ -149,6 +157,7 @@ def build_davinci_manifest(db: Session, video_id: int) -> dict:
             {
                 "asset_id": asset.id,
                 "scene_id": asset.scene_id,
+                "is_shared": asset.scene_id is None,
                 "asset_type": asset.asset_type,
                 "title": asset.title,
                 "status": asset.status,
@@ -340,6 +349,7 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
 
     fieldnames = [
         "scene_id",
+        "scene_number",
         "position",
         "title",
         "status",
@@ -350,6 +360,7 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
         "se_path",
         "script",
         "telop",
+        "subtitle_text",
     ]
 
     with csv_path.open("w", encoding="utf-8-sig", newline="") as f:
@@ -360,6 +371,7 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
             writer.writerow(
                 {
                     "scene_id": scene.get("scene_id"),
+                    "scene_number": scene.get("scene_number"),
                     "position": scene.get("position"),
                     "title": scene.get("title"),
                     "status": scene.get("status"),
@@ -370,6 +382,7 @@ def create_davinci_scenes_csv(manifest: dict, export_dir: Path) -> str:
                     "se_path": scene.get("se_path"),
                     "script": scene.get("script"),
                     "telop": scene.get("telop"),
+                    "subtitle_text": scene.get("subtitle_text"),
                 }
             )
 
@@ -402,6 +415,84 @@ def _is_supported_image_file(path_str: str | None) -> bool:
     suffix = Path(path_str).suffix.lower()
     return suffix in {".png", ".jpg", ".jpeg", ".webp"}
 
+def _probe_media_duration_seconds(path_str: str | None) -> int | None:
+    if not path_str:
+        return None
+
+    path = Path(path_str)
+    if not path.exists():
+        return None
+
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        value = (result.stdout or "").strip()
+        if not value:
+            return None
+
+        seconds = float(value)
+        if seconds <= 0:
+            return None
+
+        return max(1, ceil(seconds))
+    except Exception:
+        return None
+
+def _is_supported_video_file(path_str: str | None) -> bool:
+    if not path_str:
+        return False
+
+    suffix = Path(path_str).suffix.lower()
+    return suffix in {".mp4", ".mov", ".m4v", ".avi", ".mkv"}
+
+
+def _is_supported_visual_file(path_str: str | None) -> bool:
+    return _is_supported_image_file(path_str) or _is_supported_video_file(path_str)
+
+
+def _is_visual_overlay_asset(asset: dict) -> bool:
+    asset_type = (asset.get("asset_type") or "").lower()
+    path = asset.get("path_or_url")
+
+    if asset_type in {"background", "audio", "voice", "bgm", "se"}:
+        return False
+
+    if not path:
+        return False
+
+    return _is_supported_visual_file(path)
+
+
+def _collect_visual_assets_for_scene(manifest: dict, scene_id: int) -> list[dict]:
+    results = []
+
+    for asset in manifest.get("assets", []):
+        if asset.get("scene_id") not in (None, scene_id):
+            continue
+
+        if not _is_visual_overlay_asset(asset):
+            continue
+
+        results.append(asset)
+
+    return results
+
+
+def _build_scene_label(scene: dict) -> str:
+    scene_number = int(scene.get("scene_number") or 0)
+    title = (scene.get("title") or "scene").strip()
+    return f"シーン{scene_number:02d}_{title}"
+
 
 def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     xml_path = export_dir / "timeline.fcpxml"
@@ -415,16 +506,22 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
     total_seconds = 0
 
     for scene in manifest.get("scenes", []):
-        duration_seconds = scene.get("duration_seconds") or 5
+        duration_seconds = int(scene.get("duration_seconds") or 5)
         total_seconds += duration_seconds
+
+        visual_assets = _collect_visual_assets_for_scene(manifest, scene.get("scene_id"))
 
         scene_assets.append(
             {
+                "scene_id": scene.get("scene_id"),
+                "scene_number": scene.get("scene_number"),
+                "label": _build_scene_label(scene),
                 "title": scene.get("title") or "scene",
                 "audio_path": scene.get("audio_path"),
                 "bg_video_path": scene.get("bg_video_path"),
                 "telop_video_path": scene.get("telop_video_path"),
                 "duration_seconds": duration_seconds,
+                "visual_assets": visual_assets,
             }
         )
 
@@ -446,6 +543,15 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
 
     resource_index = 2
 
+    def next_resource_id() -> str:
+        nonlocal resource_index
+        rid = f"r{resource_index}"
+        resource_index += 1
+        return rid
+
+    # 使い回しできる素材は path 単位で resource を共有
+    visual_resource_map: dict[str, str] = {}
+
     for scene in scene_assets:
         duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps)
 
@@ -454,14 +560,12 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         scene["telop_id"] = None
 
         if scene.get("bg_video_path"):
-            scene["bg_id"] = f"r{resource_index}"
-            resource_index += 1
-
+            scene["bg_id"] = next_resource_id()
             ET.SubElement(
                 resources,
                 "asset",
                 id=scene["bg_id"],
-                name=f"{scene['title']}_bg",
+                name=f"{scene['label']}_bg",
                 src=_to_file_uri(scene["bg_video_path"], export_dir),
                 start="0s",
                 duration=duration,
@@ -471,14 +575,12 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
             )
 
         if scene.get("audio_path"):
-            scene["audio_id"] = f"r{resource_index}"
-            resource_index += 1
-
+            scene["audio_id"] = next_resource_id()
             ET.SubElement(
                 resources,
                 "asset",
                 id=scene["audio_id"],
-                name=f"{scene['title']}_audio",
+                name=f"{scene['label']}_audio",
                 src=_to_file_uri(scene["audio_path"], export_dir),
                 start="0s",
                 duration=duration,
@@ -490,14 +592,12 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
             )
 
         if scene.get("telop_video_path"):
-            scene["telop_id"] = f"r{resource_index}"
-            resource_index += 1
-
+            scene["telop_id"] = next_resource_id()
             ET.SubElement(
                 resources,
                 "asset",
                 id=scene["telop_id"],
-                name=f"{scene['title']}_telop",
+                name=f"{scene['label']}_subtitle",
                 src=_to_file_uri(scene["telop_video_path"], export_dir),
                 start="0s",
                 duration=duration,
@@ -505,6 +605,51 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
                 hasAudio="0",
                 format="r1",
             )
+
+        overlay_refs = []
+        for asset in scene.get("visual_assets", []):
+            path = asset.get("path_or_url")
+            if not path:
+                continue
+
+            existing_id = visual_resource_map.get(path)
+            if existing_id:
+                overlay_refs.append(
+                    {
+                        "asset_id": existing_id,
+                        "title": asset.get("title") or f"asset_{asset.get('asset_id')}",
+                        "path": path,
+                        "is_shared": bool(asset.get("is_shared")),
+                    }
+                )
+                continue
+
+            asset_res_id = next_resource_id()
+            visual_resource_map[path] = asset_res_id
+
+            ET.SubElement(
+                resources,
+                "asset",
+                id=asset_res_id,
+                name=asset.get("title") or f"asset_{asset.get('asset_id')}",
+                src=_to_file_uri(path, export_dir),
+                start="0s",
+                duration=duration,
+                hasVideo="1",
+                hasAudio="0",
+                format="r1",
+            )
+
+            overlay_refs.append(
+                {
+                    "asset_id": asset_res_id,
+                    "title": asset.get("title") or f"asset_{asset.get('asset_id')}",
+                    "path": path,
+                    "is_shared": bool(asset.get("is_shared")),
+                }
+            )
+
+        scene["overlay_refs"] = overlay_refs
 
     library = ET.SubElement(fcpxml, "library")
     event = ET.SubElement(library, "event", name="Exported Event")
@@ -529,39 +674,69 @@ def create_fcpxml(manifest: dict, export_dir: Path) -> str:
         offset = _seconds_to_fcpx_time(current_seconds, fps)
         duration = _seconds_to_fcpx_time(scene["duration_seconds"], fps)
 
-        if scene.get("bg_id"):
-            ET.SubElement(
+        primary_ref = scene.get("bg_id") or scene.get("telop_id")
+
+        # 1シーン1コンテナにする
+        if primary_ref:
+            container = ET.SubElement(
                 spine,
                 "asset-clip",
-                name=f"{scene['title']}_bg",
-                ref=scene["bg_id"],
+                name=scene["label"],
+                ref=primary_ref,
                 offset=offset,
                 duration=duration,
                 start="0s",
             )
 
+            # 背景がprimaryで、字幕が別にあるときはV2相当へ
+            if scene.get("bg_id") and scene.get("telop_id"):
+                ET.SubElement(
+                    container,
+                    "asset-clip",
+                    name=f"{scene['label']}_subtitle",
+                    ref=scene["telop_id"],
+                    offset="0s",
+                    duration=duration,
+                    start="0s",
+                    lane="1",
+                )
+
+        else:
+            container = ET.SubElement(
+                spine,
+                "gap",
+                name=scene["label"],
+                offset=offset,
+                duration=duration,
+                start="0s",
+            )
+
+        # 背景以外の素材 + 共通素材を上レーンへ積む
+        next_visual_lane = 2 if scene.get("bg_id") and scene.get("telop_id") else 1
+        for overlay in scene.get("overlay_refs", []):
+            ET.SubElement(
+                container,
+                "asset-clip",
+                name=overlay["title"],
+                ref=overlay["asset_id"],
+                offset="0s",
+                duration=duration,
+                start="0s",
+                lane=str(next_visual_lane),
+            )
+            next_visual_lane += 1
+
+        # 音声はA1相当にぶら下げる
         if scene.get("audio_id"):
             ET.SubElement(
-                spine,
+                container,
                 "asset-clip",
-                name=f"{scene['title']}_audio",
+                name=f"{scene['label']}_audio",
                 ref=scene["audio_id"],
-                offset=offset,
+                offset="0s",
                 duration=duration,
                 start="0s",
                 lane="-1",
-            )
-
-        if scene.get("telop_id"):
-            ET.SubElement(
-                spine,
-                "asset-clip",
-                name=f"{scene['title']}_telop",
-                ref=scene["telop_id"],
-                offset=offset,
-                duration=duration,
-                start="0s",
-                lane="1",
             )
 
         current_seconds += scene["duration_seconds"]
@@ -768,6 +943,18 @@ def export_davinci_manifest(db: Session, video_id: int, export_name: str | None 
         if audio and not copied_audio:
             missing_files.append(audio)
         scene["audio_path"] = copied_audio
+
+        # 5秒固定をやめて、未設定 or デフォルト値っぽい場合は音声長を優先
+        current_duration = scene.get("duration_seconds")
+        probed_audio_duration = _probe_media_duration_seconds(copied_audio)
+
+        if probed_audio_duration is not None:
+            if current_duration in (None, 0, 5):
+                scene["duration_seconds"] = probed_audio_duration
+            else:
+                scene["duration_seconds"] = max(int(current_duration), probed_audio_duration)
+        else:
+            scene["duration_seconds"] = int(current_duration or 5)
 
     # --- assets ---
     for asset in manifest["assets"]:
