@@ -1,5 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from fastapi.responses import FileResponse
+from pathlib import Path
+import re
+
 from app.services.task_title_sync import sync_task_titles_for_scene
 
 from app.dependencies.db import get_db
@@ -19,6 +23,98 @@ from app.schemas.scene import (
 
 router = APIRouter(tags=["scenes"])
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+OUTPUT_DIR = (BACKEND_DIR / "outputs").resolve()
+
+
+def _safe_download_name(text: str | None, fallback: str) -> str:
+    base = (text or "").strip()
+    if not base:
+        return fallback
+    base = re.sub(r'[\\/:*?"<>|]+', "_", base)
+    base = re.sub(r"\s+", "_", base)
+    return base[:30] or fallback
+
+
+def _resolve_output_file(path_str: str | None) -> Path:
+    if not path_str:
+        raise HTTPException(status_code=404, detail="ファイルパスがありません")
+
+    raw_path = Path(path_str)
+
+    if raw_path.is_absolute():
+        resolved = raw_path.resolve()
+    else:
+        resolved = (BACKEND_DIR / raw_path).resolve()
+
+    if not str(resolved).startswith(str(OUTPUT_DIR)):
+        raise HTTPException(status_code=400, detail="outputs配下のみ取得可")
+
+    if not resolved.exists():
+        raise HTTPException(status_code=404, detail="ファイルなし")
+
+    return resolved
+
+
+@router.get("/{scene_id}/download/audio")
+def download_scene_audio(scene_id: int, db: Session = Depends(get_db)):
+    scene = db.query(Scene).filter(Scene.id == scene_id).first()
+    if not scene:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    if not scene.voice_asset_id:
+        raise HTTPException(status_code=400, detail="音声が未選択")
+
+    voice_asset = db.query(VoiceAsset).filter(
+        VoiceAsset.id == scene.voice_asset_id
+    ).first()
+
+    if not voice_asset:
+        raise HTTPException(status_code=404, detail="VoiceAsset not found")
+
+    file_path = _resolve_output_file(voice_asset.audio_path)
+
+    safe_name = _safe_download_name(
+        voice_asset.voice_text or voice_asset.text,
+        f"scene_{scene_id}",
+    )
+
+    return FileResponse(
+        path=file_path,
+        filename=f"scene_{scene_id}_{safe_name}.wav",
+        media_type="audio/wav",
+    )
+
+
+@router.get("/{scene_id}/download/subtitle")
+def download_scene_subtitle(scene_id: int, db: Session = Depends(get_db)):
+    scene = db.query(Scene).filter(Scene.id == scene_id).first()
+    if not scene:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    if not scene.voice_asset_id:
+        raise HTTPException(status_code=400, detail="字幕が未選択")
+
+    voice_asset = db.query(VoiceAsset).filter(
+        VoiceAsset.id == scene.voice_asset_id
+    ).first()
+
+    if not voice_asset:
+        raise HTTPException(status_code=404, detail="VoiceAsset not found")
+
+    file_path = _resolve_output_file(voice_asset.subtitle_png_path)
+
+    safe_name = _safe_download_name(
+        voice_asset.subtitle_text or voice_asset.text,
+        f"scene_{scene_id}",
+    )
+
+    return FileResponse(
+        path=file_path,
+        filename=f"scene_{scene_id}_{safe_name}.png",
+        media_type="image/png",
+    )
+    
 
 @router.post("/videos/{video_id}/scenes", response_model=SceneResponse)
 def create_scene(video_id: int, scene: SceneCreate, db: Session = Depends(get_db)):

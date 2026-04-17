@@ -4,6 +4,10 @@ import {
   getVoiceAssetAudioDownloadUrl,
   getVoiceAssetSubtitleDownloadUrl,
 } from "../../api/voiceAssetApi";
+import {
+  getSceneAudioDownloadUrl,
+  getSceneSubtitleDownloadUrl,
+} from "../../api/sceneApi";
 
 function buildFileUrl(path) {
   if (!path) return "";
@@ -270,6 +274,24 @@ export default function SceneModal({
                             >
                               字幕DL
                             </a>
+                          )}
+                          {scene.voice_asset_id && (
+                            <div style={{ marginTop: "10px" }}>
+                              <a
+                                href={getSceneAudioDownloadUrl(scene.id)}
+                                className="primary-button"
+                              >
+                                採用音声DL
+                              </a>
+
+                              <a
+                                href={getSceneSubtitleDownloadUrl(scene.id)}
+                                className="primary-button"
+                                style={{ marginLeft: "8px" }}
+                              >
+                                採用字幕DL
+                              </a>
+                            </div>
                           )}
                         </div>
                         </article>

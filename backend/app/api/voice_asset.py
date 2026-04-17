@@ -15,8 +15,9 @@ from app.services.voice_service import generate_voice_file
 
 router = APIRouter(prefix="/voice-assets", tags=["voice-assets"])
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_BASE_DIR = Path("outputs")
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+OUTPUT_DIR = (BACKEND_DIR / "outputs").resolve()
 
 
 def _safe_download_name(text: str | None, fallback: str) -> str:
@@ -84,7 +85,7 @@ def download_voice_subtitle(voice_asset_id: int, db: Session = Depends(get_db)):
         filename=f"scene_{voice_asset.scene_id}_{safe_name}.png",
         media_type="image/png",
     )
-    
+
 
 @router.post("/generate", response_model=VoiceAssetResponse)
 def generate_voice_asset(payload: VoiceAssetGenerateRequest, db: Session = Depends(get_db)):

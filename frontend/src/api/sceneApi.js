@@ -84,3 +84,11 @@ export async function duplicateScene(sceneId) {
 
   return response.json();
 }
+
+export function getSceneAudioDownloadUrl(sceneId) {
+  return `${API_BASE_URL}/scenes/${sceneId}/download/audio`;
+}
+
+export function getSceneSubtitleDownloadUrl(sceneId) {
+  return `${API_BASE_URL}/scenes/${sceneId}/download/subtitle`;
+}
