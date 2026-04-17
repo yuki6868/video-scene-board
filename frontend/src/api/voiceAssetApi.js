@@ -40,3 +40,11 @@ export async function selectVoiceAsset(voiceAssetId) {
 
   return response.json();
 }
+
+export function getVoiceAssetAudioDownloadUrl(voiceAssetId) {
+  return `${API_BASE_URL}/voice-assets/${voiceAssetId}/download/audio`;
+}
+
+export function getVoiceAssetSubtitleDownloadUrl(voiceAssetId) {
+  return `${API_BASE_URL}/voice-assets/${voiceAssetId}/download/subtitle`;
+}

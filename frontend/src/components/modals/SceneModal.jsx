@@ -1,5 +1,9 @@
 import SceneAssetSection from "../scene/SceneAssetSection";
 import ScenePreview from "../preview/ScenePreview";
+import {
+  getVoiceAssetAudioDownloadUrl,
+  getVoiceAssetSubtitleDownloadUrl,
+} from "../../api/voiceAssetApi";
 
 function buildFileUrl(path) {
   if (!path) return "";
@@ -242,13 +246,31 @@ export default function SceneModal({
                         )}
 
                         <div className="voice-history-actions">
-                            <button
+                          <button
                             type="button"
                             className="secondary-button"
                             onClick={() => onSelectVoiceAsset(asset.id)}
-                            >
+                          >
                             採用する
-                            </button>
+                          </button>
+
+                          {asset.audio_path && (
+                            <a
+                              href={getVoiceAssetAudioDownloadUrl(asset.id)}
+                              className="secondary-button"
+                            >
+                              音声DL
+                            </a>
+                          )}
+
+                          {asset.subtitle_png_path && (
+                            <a
+                              href={getVoiceAssetSubtitleDownloadUrl(asset.id)}
+                              className="secondary-button"
+                            >
+                              字幕DL
+                            </a>
+                          )}
                         </div>
                         </article>
                     ))}
