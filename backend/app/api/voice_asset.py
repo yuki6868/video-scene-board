@@ -1,6 +1,8 @@
 from pathlib import Path
+import re
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
@@ -13,8 +15,76 @@ from app.services.voice_service import generate_voice_file
 
 router = APIRouter(prefix="/voice-assets", tags=["voice-assets"])
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_BASE_DIR = Path("outputs")
 
+
+def _safe_download_name(text: str | None, fallback: str) -> str:
+    base = (text or "").strip()
+    if not base:
+        return fallback
+    base = re.sub(r'[\\/:*?"<>|]+', "_", base)
+    base = re.sub(r"\s+", "_", base)
+    return base[:30] or fallback
+
+
+def _resolve_output_file(path_str: str | None) -> Path:
+    if not path_str:
+        raise HTTPException(status_code=404, detail="ファイルパスがありません")
+
+    raw_path = Path(path_str)
+
+    if raw_path.is_absolute():
+        resolved = raw_path.resolve()
+    else:
+        resolved = (BACKEND_DIR / raw_path).resolve()
+
+    if not str(resolved).startswith(str(OUTPUT_DIR)):
+        raise HTTPException(status_code=400, detail="outputs配下のファイルのみ取得できます")
+
+    if not resolved.exists() or not resolved.is_file():
+        raise HTTPException(status_code=404, detail="ファイルが見つかりません")
+
+    return resolved
+
+
+@router.get("/{voice_asset_id}/download/audio")
+def download_voice_audio(voice_asset_id: int, db: Session = Depends(get_db)):
+    voice_asset = db.query(VoiceAsset).filter(VoiceAsset.id == voice_asset_id).first()
+    if not voice_asset:
+        raise HTTPException(status_code=404, detail="VoiceAsset not found")
+
+    file_path = _resolve_output_file(voice_asset.audio_path)
+    safe_name = _safe_download_name(
+        voice_asset.voice_text or voice_asset.text,
+        f"voice_asset_{voice_asset_id}",
+    )
+
+    return FileResponse(
+        path=file_path,
+        filename=f"scene_{voice_asset.scene_id}_{safe_name}.wav",
+        media_type="audio/wav",
+    )
+
+
+@router.get("/{voice_asset_id}/download/subtitle")
+def download_voice_subtitle(voice_asset_id: int, db: Session = Depends(get_db)):
+    voice_asset = db.query(VoiceAsset).filter(VoiceAsset.id == voice_asset_id).first()
+    if not voice_asset:
+        raise HTTPException(status_code=404, detail="VoiceAsset not found")
+
+    file_path = _resolve_output_file(voice_asset.subtitle_png_path)
+    safe_name = _safe_download_name(
+        voice_asset.subtitle_text or voice_asset.text,
+        f"subtitle_asset_{voice_asset_id}",
+    )
+
+    return FileResponse(
+        path=file_path,
+        filename=f"scene_{voice_asset.scene_id}_{safe_name}.png",
+        media_type="image/png",
+    )
+    
 
 @router.post("/generate", response_model=VoiceAssetResponse)
 def generate_voice_asset(payload: VoiceAssetGenerateRequest, db: Session = Depends(get_db)):
