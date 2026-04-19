@@ -55,6 +55,8 @@ export default function SceneModal({
     (task) => task.scene_id === editingSceneId
   );
 
+  const selectedVoiceAsset = (voiceAssets ?? []).find((asset) => asset.is_selected);
+
   if (!isOpen) return null;
 
   return (
@@ -275,28 +277,32 @@ export default function SceneModal({
                               字幕DL
                             </a>
                           )}
-                          {scene.voice_asset_id && (
-                            <div style={{ marginTop: "10px" }}>
-                              <a
-                                href={getSceneAudioDownloadUrl(scene.id)}
-                                className="primary-button"
-                              >
-                                採用音声DL
-                              </a>
 
-                              <a
-                                href={getSceneSubtitleDownloadUrl(scene.id)}
-                                className="primary-button"
-                                style={{ marginLeft: "8px" }}
-                              >
-                                採用字幕DL
-                              </a>
-                            </div>
-                          )}
                         </div>
                         </article>
                     ))}
                     </div>
+                )}
+                {editingSceneId && selectedVoiceAsset && (
+                  <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {selectedVoiceAsset.audio_path && (
+                      <a
+                        href={getSceneAudioDownloadUrl(editingSceneId)}
+                        className="primary-button"
+                      >
+                        採用音声DL
+                      </a>
+                    )}
+
+                    {selectedVoiceAsset.subtitle_png_path && (
+                      <a
+                        href={getSceneSubtitleDownloadUrl(editingSceneId)}
+                        className="primary-button"
+                      >
+                        採用字幕DL
+                      </a>
+                    )}
+                  </div>
                 )}
                 </div>
             </section>

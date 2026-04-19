@@ -27,6 +27,14 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = (BACKEND_DIR / "outputs").resolve()
 
 
+def _get_selected_voice_asset(scene: Scene):
+    voice_assets = getattr(scene, "voice_assets", None) or []
+    for asset in voice_assets:
+        if getattr(asset, "is_selected", False):
+            return asset
+    return None
+
+
 def _safe_download_name(text: str | None, fallback: str) -> str:
     base = (text or "").strip()
     if not base:
@@ -56,21 +64,15 @@ def _resolve_output_file(path_str: str | None) -> Path:
     return resolved
 
 
-@router.get("/{scene_id}/download/audio")
+@router.get("/scenes/{scene_id}/download/audio")
 def download_scene_audio(scene_id: int, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
 
-    if not scene.voice_asset_id:
-        raise HTTPException(status_code=400, detail="音声が未選択")
-
-    voice_asset = db.query(VoiceAsset).filter(
-        VoiceAsset.id == scene.voice_asset_id
-    ).first()
-
+    voice_asset = _get_selected_voice_asset(scene)
     if not voice_asset:
-        raise HTTPException(status_code=404, detail="VoiceAsset not found")
+        raise HTTPException(status_code=400, detail="採用中の音声がありません")
 
     file_path = _resolve_output_file(voice_asset.audio_path)
 
@@ -86,21 +88,15 @@ def download_scene_audio(scene_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{scene_id}/download/subtitle")
+@router.get("/scenes/{scene_id}/download/subtitle")
 def download_scene_subtitle(scene_id: int, db: Session = Depends(get_db)):
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
 
-    if not scene.voice_asset_id:
-        raise HTTPException(status_code=400, detail="字幕が未選択")
-
-    voice_asset = db.query(VoiceAsset).filter(
-        VoiceAsset.id == scene.voice_asset_id
-    ).first()
-
+    voice_asset = _get_selected_voice_asset(scene)
     if not voice_asset:
-        raise HTTPException(status_code=404, detail="VoiceAsset not found")
+        raise HTTPException(status_code=400, detail="採用中の字幕がありません")
 
     file_path = _resolve_output_file(voice_asset.subtitle_png_path)
 
